@@ -1135,127 +1135,199 @@ export function HomeView({
         </section>
       </RevealSection>
 
-      {/* 8. Professional Footer */}
-      <footer className="border-t border-white/[0.08] pt-10">
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="space-y-3 lg:col-span-2">
-            <div className="flex items-center gap-2.5">
-              <span className="font-display text-lg font-extrabold text-white">
-                NutriSense{" "}
-                <span className="bg-gradient-to-r from-[#A3FF12] to-[#34D399] bg-clip-text text-transparent">
-                  AI
-                </span>
-              </span>
+      {/* 8. Distinct Elevated NutriSense AI Footer */}
+      <div className="pt-8 sm:pt-12">
+        <footer
+          aria-label="Site Footer"
+          className="relative overflow-hidden rounded-[2rem] border border-white/[0.09] shadow-[0_0_55px_rgba(52,211,153,0.06),0_20px_60px_rgba(0,0,0,0.65)]"
+          style={{
+            background:
+              "linear-gradient(180deg, rgba(22, 30, 24, 0.92) 0%, rgba(14, 19, 16, 0.96) 56%, rgba(9, 12, 10, 0.98) 100%)",
+          }}
+        >
+          {/* Low-intensity green ambient radial sheen matching NutriSense dark palette */}
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-28 left-1/2 h-64 w-3/4 -translate-x-1/2 rounded-full bg-[#34D399]/[0.07] blur-[95px]"
+          />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#A3FF12]/25 to-transparent"
+          />
+
+          <div className="relative px-6 pt-10 pb-8 sm:px-10 sm:pt-12 sm:pb-9 lg:px-14 lg:pt-14">
+            {/* Main Footer Grid: Brand (Left) + Core Platform (Middle) + Smart Tools (Right) */}
+            <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-12 lg:gap-8">
+              {/* LEFT SECTION: Existing Logo + Description + Disclaimer */}
+              <div className="space-y-4 sm:col-span-2 lg:col-span-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#A3FF12]/30 bg-gradient-to-br from-[#A3FF12]/20 via-[#34D399]/15 to-[#121212] shadow-[0_0_20px_rgba(163,255,18,0.14)]">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-5 w-5"
+                      fill="none"
+                      aria-hidden="true"
+                    >
+                      <path
+                        d="M19 4C11.5 4 6.5 8.5 5 15.5C8.8 14.8 12.2 12.7 14.5 9.8C13.2 13.5 9.8 16.5 5.2 17.8C6.6 19.3 8.8 20 11.4 20C16.8 20 20 15.4 20 9.6C20 7.6 19.6 5.7 19 4Z"
+                        fill="url(#footerNutrisenseLogo)"
+                      />
+                      <defs>
+                        <linearGradient
+                          id="footerNutrisenseLogo"
+                          x1="5"
+                          y1="4"
+                          x2="20"
+                          y2="20"
+                          gradientUnits="userSpaceOnUse"
+                        >
+                          <stop stopColor="#A3FF12" />
+                          <stop offset="1" stopColor="#34D399" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                  </span>
+                  <span className="font-display text-xl font-extrabold tracking-tight text-white">
+                    NutriSense{" "}
+                    <span className="bg-gradient-to-r from-[#A3FF12] to-[#34D399] bg-clip-text text-transparent">
+                      AI
+                    </span>
+                  </span>
+                </div>
+
+                <p className="max-w-md text-sm leading-relaxed text-[#B4BEB7]">
+                  AI-powered meal vision analysis, interactive gram portion
+                  control, tailored food swaps, Indian food nutrition guides,
+                  and PostgreSQL daily macro tracking.
+                </p>
+
+                <p className="max-w-md text-xs leading-relaxed text-[#7E8981]">
+                  Educational nutrition guidance is not medical advice.
+                </p>
+              </div>
+
+              {/* MIDDLE SECTION: Core Platform */}
+              <div className="lg:col-span-3 lg:col-start-7">
+                <p className="font-display text-sm font-bold tracking-wide text-white">
+                  Core Platform
+                </p>
+                <ul className="mt-4 space-y-3 text-sm text-[#A1A1AA]">
+                  {(
+                    [
+                      { id: "home", label: "Home" },
+                      { id: "scanner", label: "AI Food Scanner" },
+                      { id: "alternatives", label: "Food Alternatives" },
+                      { id: "categories", label: "Nutrition & Categories" },
+                      { id: "dashboard", label: "Dashboard" },
+                    ] as const
+                  ).map((link) => (
+                    <li key={link.id}>
+                      <button
+                        type="button"
+                        onClick={() => onNavigate(link.id)}
+                        className="text-left transition-colors duration-200 hover:text-[#A3FF12]"
+                      >
+                        {link.label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* RIGHT SECTION: Smart Nutrition Tools + API Status */}
+              <div className="lg:col-span-3">
+                <p className="font-display text-sm font-bold tracking-wide text-white">
+                  Smart Nutrition Tools
+                </p>
+                <ul className="mt-4 space-y-3 text-sm text-[#A1A1AA]">
+                  <li>
+                    <button
+                      type="button"
+                      onClick={onOpenAssistant}
+                      className="text-left transition-colors duration-200 hover:text-[#A3FF12]"
+                    >
+                      Nutri AI Assistant
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate("planner")}
+                      className="text-left transition-colors duration-200 hover:text-[#A3FF12]"
+                    >
+                      AI Weekly Meal Planner
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate("indian-foods")}
+                      className="text-left transition-colors duration-200 hover:text-[#A3FF12]"
+                    >
+                      Indian Food Intelligence
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate("grocery")}
+                      className="text-left transition-colors duration-200 hover:text-[#A3FF12]"
+                    >
+                      Smart Grocery List
+                    </button>
+                  </li>
+                  <li className="pt-1">
+                    <span className="inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-[#0B0F0C]/80 px-3 py-1 font-mono text-xs text-[#34D399]">
+                      <span
+                        aria-hidden="true"
+                        className={`h-1.5 w-1.5 rounded-full ${
+                          apiOnline === true
+                            ? "bg-[#34D399]"
+                            : apiOnline === false
+                              ? "bg-amber-400"
+                              : "bg-zinc-400"
+                        }`}
+                      />
+                      <span>
+                        Status:{" "}
+                        {apiOnline === true
+                          ? "API Connected"
+                          : apiOnline === false
+                            ? "API Offline"
+                            : "Checking..."}
+                      </span>
+                    </span>
+                  </li>
+                </ul>
+              </div>
             </div>
-            <p className="max-w-md text-xs leading-relaxed text-[#A1A1AA]">
-              AI-powered meal vision analysis, interactive gram portion control,
-              tailored food swaps, Indian food nutrition guides, and PostgreSQL
-              daily macro tracking. Educational nutrition guidance is not
-              medical advice.
-            </p>
-          </div>
 
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-white">
-              Core Platform
-            </p>
-            <ul className="mt-3 space-y-2 text-xs text-[#A1A1AA]">
-              {(
-                [
-                  { id: "home", label: "Home" },
-                  { id: "scanner", label: "AI Food Scanner" },
-                  { id: "alternatives", label: "Food Alternatives" },
-                  { id: "categories", label: "Nutrition & Categories" },
-                  { id: "dashboard", label: "Dashboard" },
-                ] as const
-              ).map((link) => (
-                <li key={link.id}>
-                  <button
-                    type="button"
-                    onClick={() => onNavigate(link.id)}
-                    className="transition hover:text-[#A3FF12]"
-                  >
-                    {link.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
+            {/* BOTTOM SECTION: Copyright + Legal Links + Tech Attribution */}
+            <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-white/[0.08] pt-6 text-xs text-[#8D9790]">
+              <p>© {new Date().getFullYear()} NutriSense AI. All rights reserved.</p>
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+                <button
+                  type="button"
+                  onClick={() => setLegalDialog("privacy")}
+                  className="transition-colors duration-200 hover:text-[#34D399]"
+                >
+                  Privacy &amp; Data Policy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLegalDialog("terms")}
+                  className="transition-colors duration-200 hover:text-[#A3FF12]"
+                >
+                  Terms &amp; Responsible AI
+                </button>
+                <span className="text-[#7E8981]">
+                  Powered by Gemini Vision &amp; PostgreSQL
+                </span>
+              </div>
+            </div>
           </div>
-
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-white">
-              Smart Nutrition Tools
-            </p>
-            <ul className="mt-3 space-y-2 text-xs text-[#A1A1AA]">
-              <li>
-                <button
-                  type="button"
-                  onClick={onOpenAssistant}
-                  className="transition hover:text-[#A3FF12]"
-                >
-                  Nutri AI Assistant
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate("planner")}
-                  className="transition hover:text-[#A3FF12]"
-                >
-                  AI Weekly Meal Planner
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate("indian-foods")}
-                  className="transition hover:text-[#A3FF12]"
-                >
-                  Indian Food Intelligence
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  onClick={() => onNavigate("grocery")}
-                  className="transition hover:text-[#A3FF12]"
-                >
-                  Smart Grocery List
-                </button>
-              </li>
-              <li className="pt-1 font-mono text-[11px] text-[#34D399]">
-                Status:{" "}
-                {apiOnline === true
-                  ? "API Connected"
-                  : apiOnline === false
-                    ? "API Offline"
-                    : "Checking..."}
-              </li>
-            </ul>
-          </div>
-        </div>
-
-        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-white/[0.06] pt-6 text-[11px] text-zinc-500">
-          <p>© {new Date().getFullYear()} NutriSense AI. All rights reserved.</p>
-          <div className="flex flex-wrap items-center gap-4">
-            <button
-              type="button"
-              onClick={() => setLegalDialog("privacy")}
-              className="transition hover:text-[#34D399]"
-            >
-              Privacy &amp; Data Policy
-            </button>
-            <button
-              type="button"
-              onClick={() => setLegalDialog("terms")}
-              className="transition hover:text-[#A3FF12]"
-            >
-              Terms &amp; Responsible AI
-            </button>
-            <span>Powered by Gemini Vision &amp; PostgreSQL</span>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      </div>
 
       {/* Interactive Privacy / Terms Modal */}
       <AnimatePresence>
