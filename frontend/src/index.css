@@ -1,33 +1,36 @@
 @import "tailwindcss";
 
 @theme {
-  --color-obsidian: #0a0a0a;
-  --color-surface: #121212;
-  --color-surface-elevated: #171717;
-  --color-lime-accent: #a3ff12;
+  --color-obsidian: #080b09;
+  --color-secondary-surface: #101713;
+  --color-surface: #141b16;
+  --color-surface-elevated: #19221c;
+  --color-lime-accent: #b6ff38;
   --color-mint-accent: #34d399;
+  --color-muted-text: #a3ada6;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Plus Jakarta Sans", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Manrope", "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-grotesk: "Space Grotesk", "Manrope", ui-sans-serif, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
 @layer base {
   html {
-    background-color: #0a0a0a;
+    background-color: #080b09;
     color: #ffffff;
     font-family: var(--font-sans);
     scroll-behavior: smooth;
   }
 
   body {
-    background-color: #0a0a0a;
+    background-color: #080b09;
     color: #ffffff;
     min-height: 100vh;
     overflow-x: clip;
   }
 }
 
-/* Subtle dark engineering grid & surface utilities */
+/* Subtle organic health-tech dark grid & glass utilities */
 .bg-grid-subtle {
   background-image:
     linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
@@ -36,16 +39,20 @@
 }
 
 .glass-surface {
-  background: rgba(18, 18, 18, 0.78);
+  background: rgba(16, 23, 19, 0.8);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
+}
+
+.text-glow-lime {
+  text-shadow: 0 0 36px rgba(182, 255, 56, 0.28);
 }
 
 /* Scanner vertical laser beam animation */
 @keyframes scanBeam {
   0% {
     top: 4%;
-    opacity: 0.2;
+    opacity: 0.25;
   }
   15% {
     opacity: 0.95;
@@ -55,7 +62,7 @@
   }
   100% {
     top: 92%;
-    opacity: 0.2;
+    opacity: 0.25;
   }
 }
 
@@ -80,16 +87,16 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0a0a0a;
+  background: #080b09;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #262626;
+  background: #222c25;
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #3f3f46;
+  background: #36473b;
 }
 
 /* Custom NutriSense portion range slider */
@@ -108,23 +115,23 @@ input[type="range"].nutri-slider::-webkit-slider-thumb {
   width: 18px;
   height: 18px;
   border-radius: 9999px;
-  background: #a3ff12;
-  border: 2px solid #0a0a0a;
-  box-shadow: 0 0 0 2px rgba(163, 255, 18, 0.3), 0 0 12px rgba(163, 255, 18, 0.45);
+  background: #b6ff38;
+  border: 2px solid #080b09;
+  box-shadow: 0 0 0 2px rgba(182, 255, 56, 0.3), 0 0 12px rgba(182, 255, 56, 0.45);
   transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
 
 input[type="range"].nutri-slider::-webkit-slider-thumb:hover {
   transform: scale(1.12);
-  box-shadow: 0 0 0 4px rgba(163, 255, 18, 0.35), 0 0 18px rgba(163, 255, 18, 0.65);
+  box-shadow: 0 0 0 4px rgba(182, 255, 56, 0.35), 0 0 18px rgba(182, 255, 56, 0.65);
 }
 
 input[type="range"].nutri-slider::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border-radius: 9999px;
-  background: #a3ff12;
-  border: 2px solid #0a0a0a;
-  box-shadow: 0 0 0 2px rgba(163, 255, 18, 0.3), 0 0 12px rgba(163, 255, 18, 0.45);
+  background: #b6ff38;
+  border: 2px solid #080b09;
+  box-shadow: 0 0 0 2px rgba(182, 255, 56, 0.3), 0 0 12px rgba(182, 255, 56, 0.45);
   transition: transform 0.14s ease, box-shadow 0.14s ease;
 }

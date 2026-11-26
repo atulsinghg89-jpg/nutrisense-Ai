@@ -7,6 +7,7 @@ import {
   ChevronDown,
   HeartPulse,
   Home,
+  IndianRupee,
   LayoutDashboard,
   Menu,
   ShoppingBasket,
@@ -70,9 +71,15 @@ const HUB_ITEMS: {
   },
   {
     id: "indian-foods",
-    label: "Indian Food Intelligence",
-    subtitle: "Roti, dal, paneer, idli macros",
+    label: "Indian Food Discovery",
+    subtitle: "North, South, High-Protein dishes",
     icon: Utensils,
+  },
+  {
+    id: "budget",
+    label: "Budget Nutrition (₹50–₹200)",
+    subtitle: "High protein-per-rupee plans",
+    icon: IndianRupee,
   },
   {
     id: "grocery",
@@ -124,7 +131,8 @@ export function Navbar({
   const isHubActive =
     activeView === "planner" ||
     activeView === "indian-foods" ||
-    activeView === "grocery";
+    activeView === "grocery" ||
+    activeView === "budget";
 
   const statusLabel =
     apiOnline === true

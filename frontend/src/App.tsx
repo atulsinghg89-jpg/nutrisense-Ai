@@ -5,6 +5,7 @@ import { EASE_PREMIUM } from "./components/MotionPrimitives";
 import { Navbar } from "./components/Navbar";
 import { NutriAssistantDrawer } from "./components/NutriAssistantDrawer";
 import { OnboardingModal } from "./components/OnboardingModal";
+import { Preloader } from "./components/Preloader";
 import { checkBackendHealth, fetchMealLogs, round2 } from "./lib/api";
 import { loadUserProfile, saveUserProfile } from "./lib/nutritionMath";
 import type {
@@ -17,6 +18,7 @@ import type {
   UserNutritionProfile,
 } from "./types/nutrition";
 import { AlternativesView } from "./views/AlternativesView";
+import { BudgetNutritionView } from "./views/BudgetNutritionView";
 import { CategoriesView } from "./views/CategoriesView";
 import { DashboardView } from "./views/DashboardView";
 import { GroceryListView } from "./views/GroceryListView";
@@ -68,7 +70,8 @@ function readInitialViewFromHash(): AppView {
     hash === "dashboard" ||
     hash === "planner" ||
     hash === "indian-foods" ||
-    hash === "grocery"
+    hash === "grocery" ||
+    hash === "budget"
   ) {
     return hash;
   }
@@ -186,16 +189,22 @@ export function App() {
   }, [dashboardRefreshTrigger]);
 
   useEffect(() => {
-    const onHashChange = () => {
+    const syncViewFromHash = () => {
       setActiveView(readInitialViewFromHash());
     };
-    window.addEventListener("hashchange", onHashChange);
-    return () => window.removeEventListener("hashchange", onHashChange);
+    window.addEventListener("hashchange", syncViewFromHash);
+    window.addEventListener("popstate", syncViewFromHash);
+    return () => {
+      window.removeEventListener("hashchange", syncViewFromHash);
+      window.removeEventListener("popstate", syncViewFromHash);
+    };
   }, []);
 
   const handleNavigate = useCallback((view: AppView) => {
     setActiveView(view);
-    window.history.replaceState(null, "", `#${view}`);
+    if (window.location.hash !== `#${view}`) {
+      window.history.pushState(null, "", `#${view}`);
+    }
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
@@ -270,11 +279,12 @@ export function App() {
 
   return (
     <MotionConfig reducedMotion="user">
-      <div className="relative min-h-screen bg-[#0A0A0A] text-white">
+      <Preloader />
+      <div className="relative min-h-screen bg-[#080B09] text-white">
         {/* Subtle top ambient light */}
         <div
           aria-hidden="true"
-          className="pointer-events-none fixed inset-x-0 top-0 h-[420px] bg-[radial-gradient(ellipse_at_top,rgba(163,255,18,0.06),transparent_65%)]"
+          className="pointer-events-none fixed inset-x-0 top-0 h-[420px] bg-[radial-gradient(ellipse_at_top,rgba(182,255,56,0.06),transparent_65%)]"
         />
 
         <Navbar
@@ -372,6 +382,13 @@ export function App() {
                 />
               )}
 
+              {activeView === "budget" && (
+                <BudgetNutritionView
+                  onNavigate={handleNavigate}
+                  onNotify={showToast}
+                />
+              )}
+
               {activeView === "grocery" && (
                 <GroceryListView onNavigate={handleNavigate} />
               )}
@@ -379,7 +396,7 @@ export function App() {
           </AnimatePresence>
         </main>
 
-        {/* Live Event Toast Notification (Phase 17.F) */}
+        {/* Live Event Toast Notification */}
         <AnimatePresence>
           {toastMessage && (
             <motion.div
@@ -388,7 +405,7 @@ export function App() {
               initial={{ opacity: 0, y: 16, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 12, scale: 0.96 }}
-              className="fixed bottom-20 left-4 z-50 flex max-w-sm items-center gap-2.5 rounded-2xl border border-[#34D399]/40 bg-[#121212]/95 px-4 py-3 text-xs font-medium text-white shadow-2xl backdrop-blur-xl md:bottom-6 md:left-6"
+              className="fixed bottom-20 left-4 z-50 flex max-w-sm items-center gap-2.5 rounded-2xl border border-[#34D399]/40 bg-[#141B16]/95 px-4 py-3 text-xs font-medium text-white shadow-2xl backdrop-blur-xl md:bottom-6 md:left-6"
             >
               <CheckCircle2 className="h-4 w-4 shrink-0 text-[#34D399]" />
               <span className="leading-snug">{toastMessage}</span>
@@ -404,23 +421,24 @@ export function App() {
           )}
         </AnimatePresence>
 
-        {/* Floating Quick-Launch Button for Nutri AI Assistant */}
+        {/* Floating Quick-Launch Button for Nutri AI Coach */}
         <motion.button
           type="button"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.96 }}
           onClick={() => setAssistantOpen(true)}
-          aria-label="Open Nutri AI Assistant"
-          className="fixed right-4 bottom-20 z-30 flex items-center gap-2 rounded-full border border-[#A3FF12]/40 bg-[#121212]/95 px-4 py-3 text-xs font-bold text-[#A3FF12] shadow-[0_8px_30px_rgba(0,0,0,0.75)] backdrop-blur-xl transition hover:border-[#A3FF12] hover:bg-[#171717] md:right-6 md:bottom-6"
+          aria-label="Open Nutri AI Coach"
+          className="fixed right-4 bottom-20 z-30 flex items-center gap-2 rounded-full border border-[#B6FF38]/40 bg-[#141B16]/95 px-4 py-3 text-xs font-bold text-[#B6FF38] shadow-[0_8px_30px_rgba(0,0,0,0.75)] backdrop-blur-xl transition hover:border-[#B6FF38] hover:bg-[#19221C] md:right-6 md:bottom-6"
         >
           <Bot className="h-4 w-4" />
           <span className="hidden sm:inline">Ask Nutri AI</span>
         </motion.button>
 
-        {/* Nutri AI Slide-Over Chatbot Drawer */}
+        {/* Nutri AI Slide-Over Coach Drawer */}
         <NutriAssistantDrawer
           open={assistantOpen}
           onClose={() => setAssistantOpen(false)}
+          onNavigate={handleNavigate}
           todaySummary={todaySummary}
           dailyTargets={dailyTargets}
           scanSession={scanSession}

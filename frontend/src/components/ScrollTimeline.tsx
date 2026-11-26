@@ -24,7 +24,11 @@ import {
   Target,
   TrendingDown,
 } from "lucide-react";
-import type { AppView, DailyMacroTargets, DashboardSummary } from "../types/nutrition";
+import type {
+  AppView,
+  DailyMacroTargets,
+  DashboardSummary,
+} from "../types/nutrition";
 import { CircuitLines } from "./CircuitLines";
 import { EASE_PREMIUM } from "./MotionPrimitives";
 
@@ -35,7 +39,6 @@ interface FloatingFeatureLabel {
   targetView: AppView;
   actionHint?: string;
   icon: typeof Camera;
-  /** Desktop positioning around the right visual */
   desktopPos: string;
   connectorSide: "left" | "right" | "bottom" | "top";
 }
@@ -50,6 +53,7 @@ interface StoryStep {
   ctaView: AppView;
   imageSrc: string;
   imageAlt: string;
+  auraGradient: string;
   labels: FloatingFeatureLabel[];
 }
 
@@ -64,20 +68,21 @@ interface ScrollTimelineProps {
 const STORY_STEPS: StoryStep[] = [
   {
     number: "01",
-    eyebrow: "AI FOOD INTELLIGENCE",
+    eyebrow: "DISCOVER YOUR FOOD",
     heading: "First, Understand What's On Your Plate.",
     description:
-      "Simply upload your meal photo and let NutriSense AI identify food items and estimate their nutritional values.",
+      "Simply upload your meal photo and let NutriSense AI identify Indian and everyday food items with estimated portions.",
     greenInfo: "Gemini Vision • Multi-Item Plate Recognition",
     ctaLabel: "Explore AI Scanner",
     ctaView: "scanner",
-    imageSrc: "/images/hero-bowl.jpg",
-    imageAlt: "Balanced healthy salmon, quinoa, and avocado bowl scanned by NutriSense AI",
+    imageSrc: "/images/indian-hero-bowl.jpg",
+    imageAlt: "Indian healthy paneer, millet khichdi, sprouted moong, and avocado bowl",
+    auraGradient: "radial-gradient(circle at 60% 45%, rgba(182,255,56,0.14), transparent 65%)",
     labels: [
       {
         id: "ai-scanner",
         label: "AI Food Scanner",
-        sublabel: "Upload or analyze meal",
+        sublabel: "Upload or live camera",
         targetView: "scanner",
         icon: Camera,
         desktopPos: "top-5 left-2 xl:-left-5",
@@ -85,17 +90,17 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "food-recognition",
-        label: "Food Recognition",
+        label: "Indian & Plate Recognition",
         sublabel: "Multi-item breakdown",
-        targetView: "scanner",
+        targetView: "indian-foods",
         icon: ScanLine,
         desktopPos: "top-7 right-2 xl:-right-4",
         connectorSide: "left",
       },
       {
         id: "calorie-analysis",
-        label: "Calories & Protein",
-        sublabel: "Live kcal & macro est.",
+        label: "Calorie Analysis",
+        sublabel: "Live kcal estimation",
         targetView: "dashboard",
         icon: Flame,
         desktopPos: "bottom-20 left-2 xl:-left-5",
@@ -103,8 +108,8 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "protein-detection",
-        label: "Carbs & Fats",
-        sublabel: "Complete gram split",
+        label: "Protein & Macros",
+        sublabel: "Gram-level breakdown",
         targetView: "scanner",
         icon: Sparkles,
         desktopPos: "bottom-6 right-2 xl:-right-4",
@@ -114,20 +119,21 @@ const STORY_STEPS: StoryStep[] = [
   },
   {
     number: "02",
-    eyebrow: "SMART NUTRITION ANALYSIS",
+    eyebrow: "UNDERSTAND YOUR NUTRITION",
     heading: "Know What Your Food Really Contains.",
     description:
-      "Understand calories, protein, carbohydrates and fats through intelligent nutritional analysis.",
+      "Understand calories, protein, carbohydrates and fats with interactive gram sliders and per-100g normalization.",
     greenInfo: "Per-100g Normalization • Live Portion Recalculation",
     ctaLabel: "Explore Nutrition Analysis",
     ctaView: "scanner",
     imageSrc: "/images/nutrition-analytics.jpg",
-    imageAlt: "Dark luxury health-tech nutrition macro rings and plate analytics graphic",
+    imageAlt: "Dark health-tech nutrition analytics graphic with glowing macro rings",
+    auraGradient: "radial-gradient(circle at 55% 40%, rgba(52,211,153,0.16), transparent 65%)",
     labels: [
       {
         id: "macro-calories",
         label: "Daily Calories",
-        sublabel: "Calorie analysis",
+        sublabel: "Consumed vs. remaining",
         targetView: "dashboard",
         icon: Flame,
         desktopPos: "top-5 left-2 xl:-left-5",
@@ -136,7 +142,7 @@ const STORY_STEPS: StoryStep[] = [
       {
         id: "macro-protein",
         label: "Protein",
-        sublabel: "Target vs. intake",
+        sublabel: "Goal tracking",
         targetView: "dashboard",
         icon: Activity,
         desktopPos: "top-7 right-2 xl:-right-4",
@@ -144,8 +150,8 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "macro-carbs",
-        label: "Carbs",
-        sublabel: "Healthy food discovery",
+        label: "Indian Food Discovery",
+        sublabel: "Roti, dal, idli macros",
         targetView: "indian-foods",
         icon: BarChart3,
         desktopPos: "top-1/2 left-2 -translate-y-1/2 xl:-left-6",
@@ -153,7 +159,7 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "macro-fats",
-        label: "Fats & Macro Tracking",
+        label: "Fats & Fiber",
         sublabel: "Balanced intake split",
         targetView: "scanner",
         icon: Scale,
@@ -162,9 +168,9 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "portion-control",
-        label: "Nutrition Insights",
-        sublabel: "Weekly trends & sliders",
-        targetView: "dashboard",
+        label: "Portion Control",
+        sublabel: "Live gram sliders",
+        targetView: "scanner",
         icon: SlidersHorizontal,
         desktopPos: "bottom-5 left-2 xl:-left-4",
         connectorSide: "right",
@@ -173,15 +179,16 @@ const STORY_STEPS: StoryStep[] = [
   },
   {
     number: "03",
-    eyebrow: "HEALTHIER FOOD ALTERNATIVES",
+    eyebrow: "FIND BETTER ALTERNATIVES",
     heading: "Small Food Swaps. Better Choices.",
     description:
-      "Discover healthier alternatives and compare nutritional values before choosing your next meal.",
-    greenInfo: "3 Actionable Swaps Generated Automatically Per Scan",
+      "Discover healthier alternatives and compare protein, carbs, fats, and calorie savings side by side.",
+    greenInfo: "3 Practical Swaps Per Scan • Food Comparator",
     ctaLabel: "Explore Food Alternatives",
     ctaView: "alternatives",
     imageSrc: "/images/healthy-swaps.jpg",
-    imageAlt: "Oven-baked vegetable crisps and air-popped popcorn healthier snack alternatives",
+    imageAlt: "Oven-baked root vegetable crisps and herb popcorn healthier swaps",
+    auraGradient: "radial-gradient(circle at 60% 55%, rgba(182,255,56,0.13), transparent 65%)",
     labels: [
       {
         id: "original-meal",
@@ -194,8 +201,8 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "healthier-alt",
-        label: "Healthier Swap",
-        sublabel: "3 smart swaps per meal",
+        label: "Healthier Alternative",
+        sublabel: "Smart whole-food swap",
         targetView: "alternatives",
         icon: Sparkles,
         desktopPos: "top-7 right-2 xl:-right-4",
@@ -203,18 +210,18 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "calorie-savings",
-        label: "Calorie Difference",
-        sublabel: "Side-by-side kcal delta",
+        label: "Calorie & Macro Delta",
+        sublabel: "Side-by-side compare",
         targetView: "alternatives",
         icon: TrendingDown,
         desktopPos: "bottom-20 left-2 xl:-left-5",
         connectorSide: "right",
       },
       {
-        id: "nutrition-comp",
-        label: "Compare Nutrition",
-        sublabel: "Side-by-side food compare",
-        targetView: "alternatives",
+        id: "budget-swaps",
+        label: "Budget Protein Swaps",
+        sublabel: "₹50–₹200/day nutrition",
+        targetView: "budget",
         icon: BarChart3,
         desktopPos: "bottom-6 right-2 xl:-right-4",
         connectorSide: "left",
@@ -223,20 +230,21 @@ const STORY_STEPS: StoryStep[] = [
   },
   {
     number: "04",
-    eyebrow: "PERSONAL NUTRITION JOURNEY",
+    eyebrow: "TRANSFORM YOUR HABITS",
     heading: "Your Nutrition. Your Progress.",
     description:
-      "Track daily meals, monitor nutrition goals and understand your progress through your personal dashboard.",
-    greenInfo: "PostgreSQL Meal Persistence • Custom Daily Targets",
+      "Track daily meals in PostgreSQL, monitor weekly & monthly trends, plan Indian weekly menus, and stay consistent.",
+    greenInfo: "PostgreSQL Persistence • Weekly Insights & Planner",
     ctaLabel: "Explore My Dashboard",
     ctaView: "dashboard",
     imageSrc: "/images/dashboard-preview.jpg",
-    imageAlt: "NutriSense AI personal nutrition dashboard tablet displaying neon lime macro rings alongside whole foods",
+    imageAlt: "NutriSense AI personal dashboard tablet displaying glowing macro rings alongside healthy whole foods",
+    auraGradient: "radial-gradient(circle at 50% 50%, rgba(52,211,153,0.15), transparent 65%)",
     labels: [
       {
         id: "daily-calories",
         label: "Daily Progress",
-        sublabel: "Calories & macro bars",
+        sublabel: "Calorie & macro rings",
         targetView: "dashboard",
         icon: Flame,
         desktopPos: "top-5 left-2 xl:-left-5",
@@ -244,8 +252,8 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "protein-progress",
-        label: "Weekly Insights",
-        sublabel: "7 & 30-day PostgreSQL logs",
+        label: "Weekly & Monthly Insights",
+        sublabel: "Real PostgreSQL trends",
         targetView: "dashboard",
         icon: LayoutDashboard,
         desktopPos: "top-7 right-2 xl:-right-4",
@@ -253,9 +261,9 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "meal-history",
-        label: "Meal History",
-        sublabel: "Date & meal-type filters",
-        targetView: "dashboard",
+        label: "Weekly Diet Planner",
+        sublabel: "7-day meal schedule",
+        targetView: "planner",
         icon: History,
         desktopPos: "bottom-20 left-2 xl:-left-5",
         connectorSide: "right",
@@ -332,25 +340,25 @@ export function ScrollTimeline({
     <section
       id="storytelling"
       aria-label="Interactive Nutrition Journey"
-      className="relative rounded-[2.25rem] border border-white/[0.08] bg-[#0C0C0C]"
+      className="relative rounded-[2.25rem] border border-white/10 bg-[#101713] transition-colors duration-700"
+      style={{ backgroundImage: activeStep.auraGradient }}
     >
       {/* Subtle animated circuit lines behind the storytelling stage */}
-      <CircuitLines variant="section" className="rounded-[2.25rem] opacity-75" />
+      <CircuitLines variant="section" className="rounded-[2.25rem] opacity-70" />
 
       {/* Section Intro Banner */}
-      <div className="relative z-10 border-b border-white/[0.07] px-6 py-8 sm:px-10 lg:px-14">
+      <div className="relative z-10 border-b border-white/[0.08] px-6 py-8 sm:px-10 lg:px-14">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <span className="inline-flex items-center gap-2 rounded-full border border-[#A3FF12]/30 bg-[#A3FF12]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-[#A3FF12]">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[#B6FF38]/30 bg-[#B6FF38]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-widest text-[#B6FF38]">
               <Sparkles className="h-3.5 w-3.5" />
               Interactive Platform Walkthrough
             </span>
             <h2 className="mt-2 font-display text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
-              Four Pillars of Intelligent Nutrition
+              Four Chapters of NutriSense Intelligence
             </h2>
           </div>
 
-          {/* Quick Jump Pills on Desktop */}
           <div className="hidden flex-wrap items-center gap-2 lg:flex">
             {STORY_STEPS.map((step, idx) => {
               const isActive = idx === activeIndex;
@@ -361,8 +369,8 @@ export function ScrollTimeline({
                   onClick={() => jumpToStep(idx)}
                   className={`flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
                     isActive
-                      ? "border-[#A3FF12]/60 bg-[#A3FF12]/15 text-[#A3FF12] shadow-[0_0_20px_rgba(163,255,18,0.18)]"
-                      : "border-white/[0.08] bg-[#121212] text-[#A1A1AA] hover:border-white/25 hover:text-white"
+                      ? "border-[#B6FF38]/60 bg-[#B6FF38]/15 text-[#B6FF38] shadow-[0_0_20px_rgba(182,255,56,0.2)]"
+                      : "border-white/10 bg-[#141B16] text-[#A3ADA6] hover:border-white/25 hover:text-white"
                   }`}
                 >
                   <span className="font-mono text-[11px]">{step.number}</span>
@@ -374,11 +382,11 @@ export function ScrollTimeline({
         </div>
       </div>
 
-      {/* DESKTOP STICKY SPLIT-SCREEN STORYTELLING (LEFT TEXT + CENTER TIMELINE + RIGHT IMAGE + FLOATING LINKS) */}
+      {/* DESKTOP STICKY SPLIT-SCREEN STORYTELLING */}
       <div ref={containerRef} className="relative hidden lg:block lg:h-[260vh]">
         <div className="sticky top-20 flex min-h-[calc(100vh-6rem)] items-center px-10 py-10 xl:px-14">
           <div className="grid w-full grid-cols-12 items-center gap-6">
-            {/* LEFT SIDE: Heading, Description, Green Info, CTA */}
+            {/* LEFT SIDE */}
             <div className="col-span-5 pr-4">
               <AnimatePresence mode="wait">
                 <motion.div
@@ -390,42 +398,40 @@ export function ScrollTimeline({
                   className="space-y-6"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="font-mono text-4xl font-extrabold text-[#A3FF12]/90">
+                    <span className="font-mono text-4xl font-extrabold text-[#B6FF38]">
                       {activeStep.number}
                     </span>
-                    <div className="h-px w-10 bg-[#A3FF12]/40" />
+                    <div className="h-px w-10 bg-[#B6FF38]/40" />
                     <span className="text-xs font-bold uppercase tracking-[0.2em] text-[#34D399]">
                       {activeStep.eyebrow}
                     </span>
                   </div>
 
-                  <h3 className="font-display text-4xl leading-[1.1] font-extrabold tracking-tight text-white xl:text-[2.75rem]">
+                  <h3 className="font-display text-4xl leading-[1.08] font-extrabold tracking-tight text-white xl:text-[2.75rem]">
                     {activeStep.heading}
                   </h3>
 
-                  <p className="max-w-lg text-base leading-relaxed text-[#A1A1AA]">
+                  <p className="max-w-lg text-base leading-relaxed text-[#A3ADA6]">
                     {activeStep.description}
                   </p>
 
-                  {/* Green highlighted info */}
                   <div className="inline-flex items-center gap-2 rounded-xl border border-[#34D399]/30 bg-[#34D399]/10 px-4 py-2 text-xs font-semibold text-[#34D399]">
-                    <span className="h-2 w-2 rounded-full bg-[#A3FF12] shadow-[0_0_8px_#A3FF12]" />
+                    <span className="h-2 w-2 rounded-full bg-[#B6FF38] shadow-[0_0_8px_#B6FF38]" />
                     <span>{activeStep.greenInfo}</span>
                   </div>
 
-                  {/* Live real data strip inside Step 04 */}
                   {activeStep.number === "04" && (
-                    <div className="grid grid-cols-3 gap-2.5 rounded-2xl border border-white/[0.08] bg-[#121212]/90 p-3.5">
+                    <div className="grid grid-cols-3 gap-2.5 rounded-2xl border border-white/10 bg-[#141B16]/90 p-3.5">
                       <div>
-                        <p className="text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+                        <p className="text-[10px] uppercase tracking-wider text-[#A3ADA6]">
                           Today kcal
                         </p>
-                        <p className="font-mono text-base font-bold text-[#A3FF12]">
+                        <p className="font-mono text-base font-bold text-[#B6FF38]">
                           {Math.round(todaySummary.total_calories)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+                        <p className="text-[10px] uppercase tracking-wider text-[#A3ADA6]">
                           Protein
                         </p>
                         <p className="font-mono text-base font-bold text-[#34D399]">
@@ -433,7 +439,7 @@ export function ScrollTimeline({
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-wider text-[#A1A1AA]">
+                        <p className="text-[10px] uppercase tracking-wider text-[#A3ADA6]">
                           Goal kcal
                         </p>
                         <p className="font-mono text-base font-bold text-white">
@@ -449,7 +455,7 @@ export function ScrollTimeline({
                       whileHover={{ scale: 1.03 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => onNavigate(activeStep.ctaView)}
-                      className="inline-flex items-center gap-2.5 rounded-full bg-[#A3FF12] px-6 py-3.5 text-sm font-bold text-[#0A0A0A] shadow-[0_0_28px_rgba(163,255,18,0.28)] transition hover:bg-[#b5ff3b]"
+                      className="inline-flex items-center gap-2.5 rounded-full bg-[#B6FF38] px-6 py-3.5 text-sm font-bold text-[#080B09] shadow-[0_0_28px_rgba(182,255,56,0.28)] transition hover:bg-[#c8ff66]"
                     >
                       <span>{activeStep.ctaLabel}</span>
                       <ArrowRight className="h-4 w-4" />
@@ -458,7 +464,7 @@ export function ScrollTimeline({
                     <button
                       type="button"
                       onClick={onOpenAssistant}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-[#121212] px-4 py-3 text-xs font-semibold text-zinc-200 transition hover:border-[#34D399]/50 hover:text-white"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-[#141B16] px-4 py-3 text-xs font-semibold text-zinc-200 transition hover:border-[#34D399]/50 hover:text-white"
                     >
                       <Sparkles className="h-3.5 w-3.5 text-[#34D399]" />
                       <span>Ask Nutri AI</span>
@@ -468,19 +474,17 @@ export function ScrollTimeline({
               </AnimatePresence>
             </div>
 
-            {/* CENTER: Thin Vertical Animated Timeline with Diamond Number Indicators */}
+            {/* CENTER: Animated Timeline with Diamond Number Indicators */}
             <div className="col-span-1 flex flex-col items-center justify-center">
               <div className="relative flex h-[390px] w-12 flex-col items-center justify-between py-2">
-                {/* Base vertical track */}
                 <div
                   aria-hidden="true"
-                  className="absolute top-6 bottom-6 left-1/2 w-[2px] -translate-x-1/2 rounded-full bg-white/[0.1]"
+                  className="absolute top-6 bottom-6 left-1/2 w-[2px] -translate-x-1/2 rounded-full bg-white/[0.12]"
                 />
-                {/* Scroll-driven glowing progress line */}
                 <motion.div
                   aria-hidden="true"
                   style={{ scaleY: prefersReduced ? (activeIndex + 1) / 4 : lineScaleY, originY: 0 }}
-                  className="absolute top-6 bottom-6 left-1/2 w-[2px] -translate-x-1/2 rounded-full bg-gradient-to-b from-[#A3FF12] via-[#34D399] to-[#A3FF12] shadow-[0_0_12px_rgba(163,255,18,0.65)]"
+                  className="absolute top-6 bottom-6 left-1/2 w-[2px] -translate-x-1/2 rounded-full bg-gradient-to-b from-[#B6FF38] via-[#34D399] to-[#B6FF38] shadow-[0_0_12px_rgba(182,255,56,0.65)]"
                 />
 
                 {STORY_STEPS.map((step, idx) => {
@@ -491,21 +495,18 @@ export function ScrollTimeline({
                       key={step.number}
                       type="button"
                       onClick={() => jumpToStep(idx)}
-                      aria-label={`Jump to section ${step.number}: ${step.eyebrow}`}
+                      aria-label={`Jump to chapter ${step.number}: ${step.eyebrow}`}
                       className="group relative z-10 flex items-center justify-center focus:outline-none"
                     >
-                      {/* Diamond Indicator */}
                       <motion.span
-                        animate={{
-                          scale: isActive ? 1.18 : 1,
-                        }}
+                        animate={{ scale: isActive ? 1.18 : 1 }}
                         transition={{ type: "spring", stiffness: 360, damping: 24 }}
                         className={`flex h-10 w-10 rotate-45 items-center justify-center rounded-lg border transition-all duration-300 ${
                           isActive
-                            ? "border-[#A3FF12] bg-[#A3FF12] text-[#0A0A0A] shadow-[0_0_24px_rgba(163,255,18,0.55)]"
+                            ? "border-[#B6FF38] bg-[#B6FF38] text-[#080B09] shadow-[0_0_24px_rgba(182,255,56,0.55)]"
                             : isPassed
-                              ? "border-[#34D399] bg-[#121212] text-[#34D399] shadow-[0_0_14px_rgba(52,211,153,0.28)]"
-                              : "border-white/20 bg-[#0A0A0A] text-[#A1A1AA] group-hover:border-[#A3FF12]/60 group-hover:text-white"
+                              ? "border-[#34D399] bg-[#141B16] text-[#34D399] shadow-[0_0_14px_rgba(52,211,153,0.28)]"
+                              : "border-white/20 bg-[#080B09] text-[#A3ADA6] group-hover:border-[#B6FF38]/60 group-hover:text-white"
                         }`}
                       >
                         <span className="-rotate-45 font-mono text-xs font-extrabold">
@@ -518,16 +519,15 @@ export function ScrollTimeline({
               </div>
             </div>
 
-            {/* RIGHT SIDE: Large Interactive Image + Floating Clickable Feature Labels */}
+            {/* RIGHT SIDE: Sticky Interactive Image + Floating Clickable Feature Labels */}
             <div className="col-span-6 pl-4">
               <div className="relative mx-auto max-w-[540px] py-4">
-                {/* Ambient subtle green outline glow behind image */}
                 <div
                   aria-hidden="true"
-                  className="pointer-events-none absolute -inset-3 rounded-[2rem] bg-gradient-to-tr from-[#A3FF12]/15 via-transparent to-[#34D399]/15 blur-2xl"
+                  className="pointer-events-none absolute -inset-3 rounded-[2rem] bg-gradient-to-tr from-[#B6FF38]/15 via-transparent to-[#34D399]/15 blur-2xl"
                 />
 
-                <div className="relative overflow-hidden rounded-[1.75rem] border border-[#34D399]/30 bg-[#121212] p-2.5 shadow-[0_24px_80px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.06]">
+                <div className="relative overflow-hidden rounded-[1.75rem] border border-[#34D399]/35 bg-[#141B16] p-2.5 shadow-[0_24px_80px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.06]">
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={activeStep.imageSrc}
@@ -540,19 +540,19 @@ export function ScrollTimeline({
                       <img
                         src={activeStep.imageSrc}
                         alt={activeStep.imageAlt}
+                        loading="lazy"
                         className="aspect-[4/3] w-full object-cover transition duration-700 group-hover:scale-[1.03]"
                       />
                       <div
                         aria-hidden="true"
-                        className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A]/80 via-[#0A0A0A]/10 to-transparent"
+                        className="absolute inset-0 bg-gradient-to-t from-[#080B09]/85 via-[#080B09]/10 to-transparent"
                       />
-                      {/* Clickable center hint badge at bottom inside image */}
                       <div className="absolute right-4 bottom-3 left-4 flex items-center justify-between text-xs text-zinc-300">
                         <span className="font-mono text-[11px] uppercase tracking-wider text-[#34D399]">
-                          Stage {activeStep.number} • Interactive Visual
+                          Chapter {activeStep.number} • Interactive Visual
                         </span>
-                        <span className="text-[11px] text-[#A1A1AA]">
-                          Click any floating tag to open feature
+                        <span className="text-[11px] text-[#A3ADA6]">
+                          Click any floating label to open
                         </span>
                       </div>
                     </motion.div>
@@ -597,24 +597,23 @@ export function ScrollTimeline({
                           }}
                           whileHover={{ scale: 1.06 }}
                           whileTap={{ scale: 0.97 }}
-                          className={`pointer-events-auto group/tag absolute ${label.desktopPos} z-20 flex items-center gap-2.5 rounded-2xl border border-white/15 bg-[#0A0A0A]/85 px-3.5 py-2.5 text-left backdrop-blur-xl shadow-[0_12px_32px_rgba(0,0,0,0.75)] transition-colors hover:border-[#A3FF12] hover:bg-[#121212] hover:shadow-[0_0_24px_rgba(163,255,18,0.28)]`}
+                          className={`pointer-events-auto group/tag absolute ${label.desktopPos} z-20 flex items-center gap-2.5 rounded-2xl border border-white/15 bg-[#080B09]/88 px-3.5 py-2.5 text-left backdrop-blur-xl shadow-[0_12px_32px_rgba(0,0,0,0.75)] transition-colors hover:border-[#B6FF38] hover:bg-[#141B16] hover:shadow-[0_0_24px_rgba(182,255,56,0.28)]`}
                         >
-                          {/* Subtle tether indicator line connecting label toward frame */}
                           <span
                             aria-hidden="true"
                             className={`hidden h-px w-3 bg-[#34D399]/60 xl:block ${
                               label.connectorSide === "right" ? "order-last -mr-1.5" : "-ml-1.5"
                             }`}
                           />
-                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-[#34D399]/35 bg-[#34D399]/10 text-[#34D399] transition-colors group-hover/tag:border-[#A3FF12]/60 group-hover/tag:bg-[#A3FF12]/15 group-hover/tag:text-[#A3FF12]">
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-[#34D399]/35 bg-[#34D399]/10 text-[#34D399] transition-colors group-hover/tag:border-[#B6FF38]/60 group-hover/tag:bg-[#B6FF38]/15 group-hover/tag:text-[#B6FF38]">
                             <Icon className="h-3.5 w-3.5" />
                           </span>
                           <div className="min-w-0">
-                            <p className="flex items-center gap-1 text-xs font-bold whitespace-nowrap text-white group-hover/tag:text-[#A3FF12]">
+                            <p className="flex items-center gap-1 text-xs font-bold whitespace-nowrap text-white group-hover/tag:text-[#B6FF38]">
                               <span>{label.label}</span>
                               <ArrowUpRight className="h-3 w-3 opacity-60 transition-transform group-hover/tag:translate-x-0.5 group-hover/tag:-translate-y-0.5 group-hover/tag:opacity-100" />
                             </p>
-                            <p className="text-[10px] whitespace-nowrap text-[#A1A1AA]">
+                            <p className="text-[10px] whitespace-nowrap text-[#A3ADA6]">
                               {label.sublabel}
                             </p>
                           </div>
@@ -629,20 +628,19 @@ export function ScrollTimeline({
         </div>
       </div>
 
-      {/* MOBILE & TABLET RESPONSIVE STORYTELLING STACK (Non-Overlapping Touch-Friendly Labels) */}
+      {/* MOBILE & TABLET STACKED STORYTELLING */}
       <div className="relative z-10 space-y-10 px-4 py-8 sm:px-8 lg:hidden">
         {STORY_STEPS.map((step, idx) => (
           <div
             key={step.number}
-            className="relative rounded-3xl border border-white/[0.08] bg-[#121212]/90 p-5 sm:p-6"
+            className="relative rounded-3xl border border-white/10 bg-[#141B16]/90 p-5 sm:p-6"
           >
-            {/* Diamond step header */}
             <div className="flex items-center gap-3.5">
               <span
                 className={`flex h-9 w-9 shrink-0 rotate-45 items-center justify-center rounded-lg border font-mono text-xs font-extrabold ${
                   idx === 0
-                    ? "border-[#A3FF12] bg-[#A3FF12] text-[#0A0A0A]"
-                    : "border-[#34D399]/60 bg-[#0A0A0A] text-[#34D399]"
+                    ? "border-[#B6FF38] bg-[#B6FF38] text-[#080B09]"
+                    : "border-[#34D399]/60 bg-[#080B09] text-[#34D399]"
                 }`}
               >
                 <span className="-rotate-45">{step.number}</span>
@@ -657,20 +655,19 @@ export function ScrollTimeline({
               </div>
             </div>
 
-            <p className="mt-3 text-sm leading-relaxed text-[#A1A1AA]">
+            <p className="mt-3 text-sm leading-relaxed text-[#A3ADA6]">
               {step.description}
             </p>
 
-            {/* Visual */}
-            <div className="mt-4 overflow-hidden rounded-2xl border border-[#34D399]/25 bg-[#0A0A0A]">
+            <div className="mt-4 overflow-hidden rounded-2xl border border-[#34D399]/25 bg-[#080B09]">
               <img
                 src={step.imageSrc}
                 alt={step.imageAlt}
+                loading="lazy"
                 className="aspect-[16/10] w-full object-cover"
               />
             </div>
 
-            {/* Non-overlapping Touch-Friendly Feature Link Grid */}
             <div className="mt-4 grid grid-cols-2 gap-2.5">
               {step.labels.map((label) => {
                 const Icon = label.icon;
@@ -679,13 +676,13 @@ export function ScrollTimeline({
                     key={label.id}
                     type="button"
                     onClick={() => handleLabelClick(label)}
-                    className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-[#0A0A0A] px-3 py-2.5 text-left transition hover:border-[#A3FF12]/60"
+                    className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#080B09] px-3 py-2.5 text-left transition hover:border-[#B6FF38]/60"
                   >
                     <Icon className="h-3.5 w-3.5 shrink-0 text-[#34D399]" />
                     <span className="truncate text-xs font-semibold text-white">
                       {label.label}
                     </span>
-                    <ArrowUpRight className="ml-auto h-3 w-3 shrink-0 text-[#A3FF12]" />
+                    <ArrowUpRight className="ml-auto h-3 w-3 shrink-0 text-[#B6FF38]" />
                   </button>
                 );
               })}
@@ -694,7 +691,7 @@ export function ScrollTimeline({
             <button
               type="button"
               onClick={() => onNavigate(step.ctaView)}
-              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#A3FF12] px-5 py-2.5 text-xs font-bold text-[#0A0A0A]"
+              className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#B6FF38] px-5 py-2.5 text-xs font-bold text-[#080B09]"
             >
               <span>{step.ctaLabel}</span>
               <ArrowRight className="h-3.5 w-3.5" />

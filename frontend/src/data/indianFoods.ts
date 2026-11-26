@@ -1,11 +1,11 @@
 export type DiscoveryCategoryTag =
+  | "Indian Cuisine"
+  | "North Indian"
+  | "South Indian"
+  | "Vegetarian"
   | "High Protein"
   | "Low Calorie"
-  | "Healthy Breakfast"
-  | "Muscle Building"
-  | "Weight Management"
-  | "Vegetarian"
-  | "Indian Healthy Foods";
+  | "Budget Friendly";
 
 export interface IndianFoodItem {
   id: string;
@@ -18,6 +18,7 @@ export interface IndianFoodItem {
     | "Protein & Paneer"
     | "Comfort & Balanced";
   discoveryTags: DiscoveryCategoryTag[];
+  imagePath: string;
   servingLabel: string;
   servingGrams: number;
   calories: number;
@@ -25,18 +26,19 @@ export interface IndianFoodItem {
   carbs: number;
   fats: number;
   fiber: number;
+  estimatedCostInr: number;
   note: string;
   smartTip: string;
 }
 
 export const DISCOVERY_CATEGORIES: DiscoveryCategoryTag[] = [
-  "Indian Healthy Foods",
+  "Indian Cuisine",
+  "North Indian",
+  "South Indian",
+  "Vegetarian",
   "High Protein",
   "Low Calorie",
-  "Healthy Breakfast",
-  "Muscle Building",
-  "Weight Management",
-  "Vegetarian",
+  "Budget Friendly",
 ];
 
 export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
@@ -45,7 +47,8 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     name: "Whole Wheat Roti (Phulka)",
     hindiName: "गेहूं की रोटी",
     category: "Bread & Grains",
-    discoveryTags: ["Vegetarian", "Indian Healthy Foods", "Weight Management"],
+    discoveryTags: ["Indian Cuisine", "North Indian", "Vegetarian", "Budget Friendly"],
+    imagePath: "/images/north-indian-thali.jpg",
     servingLabel: "1 medium roti (no ghee)",
     servingGrams: 40,
     calories: 104,
@@ -53,6 +56,7 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 20.5,
     fats: 0.9,
     fiber: 2.8,
+    estimatedCostInr: 8,
     note: "Adding 1 tsp ghee raises energy by ~45 kcal and ~5g fat.",
     smartTip: "Pair 2 rotis with dal or paneer and salad to slow glycemic absorption.",
   },
@@ -61,7 +65,8 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     name: "Cooked Toor / Yellow Dal Tadka",
     hindiName: "तूर दाल तड़का",
     category: "Lentils & Legumes",
-    discoveryTags: ["Vegetarian", "Indian Healthy Foods", "High Protein"],
+    discoveryTags: ["Indian Cuisine", "North Indian", "Vegetarian", "Budget Friendly"],
+    imagePath: "/images/north-indian-thali.jpg",
     servingLabel: "1 medium katori",
     servingGrams: 180,
     calories: 165,
@@ -69,6 +74,7 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 22.0,
     fats: 4.5,
     fiber: 4.8,
+    estimatedCostInr: 18,
     note: "Tempering oil or butter quantity strongly impacts total fat and calories.",
     smartTip: "Keep tadka to 1 tsp oil/ghee and mix moong + masoor dal for lighter digestion.",
   },
@@ -77,7 +83,8 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     name: "Steamed White Rice",
     hindiName: "उबले चावल",
     category: "Bread & Grains",
-    discoveryTags: ["Vegetarian", "Indian Healthy Foods"],
+    discoveryTags: ["Indian Cuisine", "South Indian", "North Indian", "Vegetarian", "Budget Friendly"],
+    imagePath: "/images/south-indian-breakfast.jpg",
     servingLabel: "1 medium bowl (cooked)",
     servingGrams: 150,
     calories: 195,
@@ -85,6 +92,7 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 42.5,
     fats: 0.4,
     fiber: 0.6,
+    estimatedCostInr: 12,
     note: "Basmati, Sona Masoori, and brown rice differ in fiber and glycemic response.",
     smartTip: "Follow the quarter-plate rice rule and pair with dal + sabzi + curd.",
   },
@@ -93,7 +101,8 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     name: "Low-Oil Paneer Bhurji / Grilled Paneer",
     hindiName: "पनीर",
     category: "Protein & Paneer",
-    discoveryTags: ["High Protein", "Muscle Building", "Vegetarian", "Indian Healthy Foods"],
+    discoveryTags: ["Indian Cuisine", "North Indian", "Vegetarian", "High Protein"],
+    imagePath: "/images/indian-hero-bowl.jpg",
     servingLabel: "100g fresh paneer",
     servingGrams: 100,
     calories: 265,
@@ -101,6 +110,7 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 3.4,
     fats: 20.2,
     fiber: 0,
+    estimatedCostInr: 45,
     note: "Rich gravy preparations (paneer butter masala) can double calories from cream & oil.",
     smartTip: "Opt for lightly sautéed paneer bhurji or tikka for high protein with fewer added fats.",
   },
@@ -109,7 +119,8 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     name: "Kanda Vegetable Poha",
     hindiName: "कांदा पोहा",
     category: "Breakfast & Light",
-    discoveryTags: ["Healthy Breakfast", "Vegetarian", "Indian Healthy Foods", "Weight Management"],
+    discoveryTags: ["Indian Cuisine", "Vegetarian", "Budget Friendly"],
+    imagePath: "/images/indian-hero-bowl.jpg",
     servingLabel: "1 medium plate",
     servingGrams: 180,
     calories: 250,
@@ -117,6 +128,7 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 44.0,
     fats: 6.2,
     fiber: 2.4,
+    estimatedCostInr: 18,
     note: "Peanuts and sev toppings add crunch along with extra calories and fats.",
     smartTip: "Add green peas, roasted peanuts sparingly, and squeeze fresh lemon for iron absorption.",
   },
@@ -125,7 +137,8 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     name: "Steamed Rice-Lentil Idli",
     hindiName: "इडली",
     category: "Breakfast & Light",
-    discoveryTags: ["Low Calorie", "Healthy Breakfast", "Vegetarian", "Indian Healthy Foods"],
+    discoveryTags: ["Indian Cuisine", "South Indian", "Vegetarian", "Low Calorie", "Budget Friendly"],
+    imagePath: "/images/south-indian-breakfast.jpg",
     servingLabel: "2 medium idlis (without sambar)",
     servingGrams: 110,
     calories: 146,
@@ -133,15 +146,17 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 30.2,
     fats: 0.6,
     fiber: 1.5,
+    estimatedCostInr: 20,
     note: "Fermentation improves digestibility; coconut chutney adds rich saturated fats.",
     smartTip: "Pair 2-3 idlis with protein-rich vegetable sambar instead of heavy oil chutneys.",
   },
   {
     id: "dosa",
-    name: "Plain Crisp Dosa",
+    name: "Plain Crisp Dosa & Sambar",
     hindiName: "सादा डोसा",
     category: "Breakfast & Light",
-    discoveryTags: ["Healthy Breakfast", "Vegetarian", "Indian Healthy Foods"],
+    discoveryTags: ["Indian Cuisine", "South Indian", "Vegetarian", "Budget Friendly"],
+    imagePath: "/images/south-indian-breakfast.jpg",
     servingLabel: "1 medium dosa (1 tsp oil)",
     servingGrams: 95,
     calories: 175,
@@ -149,6 +164,7 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 29.0,
     fats: 4.4,
     fiber: 1.4,
+    estimatedCostInr: 24,
     note: "Masala dosa with potato filling & butter increases meal energy to ~350–450 kcal.",
     smartTip: "Try pesarattu (moong dal dosa) or paneer-stuffed dosa for extra breakfast protein.",
   },
@@ -157,7 +173,8 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     name: "Home-Style Rajma Curry",
     hindiName: "राजमा",
     category: "Lentils & Legumes",
-    discoveryTags: ["High Protein", "Muscle Building", "Vegetarian", "Indian Healthy Foods"],
+    discoveryTags: ["Indian Cuisine", "North Indian", "Vegetarian", "High Protein", "Budget Friendly"],
+    imagePath: "/images/north-indian-thali.jpg",
     servingLabel: "1 medium katori",
     servingGrams: 200,
     calories: 235,
@@ -165,6 +182,7 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 34.0,
     fats: 6.0,
     fiber: 8.2,
+    estimatedCostInr: 26,
     note: "Restaurant-style rajma typically includes extra butter and onion-tomato oil base.",
     smartTip: "Pair rajma with controlled steamed rice and cucumber-onion raita for complete amino acids.",
   },
@@ -173,7 +191,8 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     name: "Punjabi Chole (Chickpea Curry)",
     hindiName: "छोले",
     category: "Lentils & Legumes",
-    discoveryTags: ["High Protein", "Vegetarian", "Indian Healthy Foods"],
+    discoveryTags: ["Indian Cuisine", "North Indian", "Vegetarian", "High Protein", "Budget Friendly"],
+    imagePath: "/images/north-indian-thali.jpg",
     servingLabel: "1 medium katori",
     servingGrams: 200,
     calories: 265,
@@ -181,6 +200,7 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 36.5,
     fats: 8.2,
     fiber: 7.9,
+    estimatedCostInr: 25,
     note: "Pairing with deep-fried bhature shifts the meal past 700+ kcal rapidly.",
     smartTip: "Enjoy chole with whole-wheat roti or stuffed tandoori kulcha + fresh kachumber salad.",
   },
@@ -189,7 +209,8 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     name: "Moong Dal Vegetable Khichdi",
     hindiName: "मूंग दाल खिचड़ी",
     category: "Comfort & Balanced",
-    discoveryTags: ["Vegetarian", "Indian Healthy Foods", "Weight Management"],
+    discoveryTags: ["Indian Cuisine", "North Indian", "Vegetarian", "Budget Friendly"],
+    imagePath: "/images/indian-hero-bowl.jpg",
     servingLabel: "1 medium bowl",
     servingGrams: 220,
     calories: 245,
@@ -197,6 +218,7 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 40.5,
     fats: 4.8,
     fiber: 4.1,
+    estimatedCostInr: 22,
     note: "Dal-to-rice ratio and ghee garnish vary calorie totals significantly.",
     smartTip: "Use a 1:1 moong dal to rice ratio with carrots, peas, and side curd for recovery meals.",
   },
@@ -205,7 +227,8 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     name: "Fresh Home-Set Dahi (Curd)",
     hindiName: "दही",
     category: "Protein & Paneer",
-    discoveryTags: ["Low Calorie", "Vegetarian", "Indian Healthy Foods", "Weight Management"],
+    discoveryTags: ["Indian Cuisine", "Vegetarian", "Low Calorie", "Budget Friendly"],
+    imagePath: "/images/north-indian-thali.jpg",
     servingLabel: "1 bowl (toned milk)",
     servingGrams: 150,
     calories: 92,
@@ -213,6 +236,7 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 7.0,
     fats: 4.6,
     fiber: 0,
+    estimatedCostInr: 16,
     note: "Full-cream buffalo milk curd contains higher fat (~7g/100g) than toned milk curd.",
     smartTip: "Mix roasted jeera & grated cucumber for a gut-friendly meal accompaniment.",
   },
@@ -221,7 +245,8 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     name: "Moong Dal Paneer Chilla",
     hindiName: "मूंग दाल चीला",
     category: "Protein & Paneer",
-    discoveryTags: ["High Protein", "Healthy Breakfast", "Muscle Building", "Vegetarian", "Indian Healthy Foods"],
+    discoveryTags: ["Indian Cuisine", "North Indian", "Vegetarian", "High Protein"],
+    imagePath: "/images/indian-hero-bowl.jpg",
     servingLabel: "2 medium chillas",
     servingGrams: 160,
     calories: 260,
@@ -229,6 +254,7 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 28.0,
     fats: 8.4,
     fiber: 5.0,
+    estimatedCostInr: 32,
     note: "Great vegetarian high-protein swap for refined flour parathas.",
     smartTip: "Grate 30g paneer and spinach into the batter for higher protein and iron.",
   },
@@ -237,7 +263,8 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     name: "Sprouted Moong Vegetable Chaat",
     hindiName: "अंकुरित मूंग चाट",
     category: "Breakfast & Light",
-    discoveryTags: ["Low Calorie", "High Protein", "Weight Management", "Vegetarian", "Indian Healthy Foods"],
+    discoveryTags: ["Indian Cuisine", "Vegetarian", "Low Calorie", "High Protein", "Budget Friendly"],
+    imagePath: "/images/indian-hero-bowl.jpg",
     servingLabel: "1 large bowl",
     servingGrams: 180,
     calories: 148,
@@ -245,6 +272,7 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 24.0,
     fats: 0.8,
     fiber: 6.4,
+    estimatedCostInr: 15,
     note: "Lightly steaming sprouts improves digestibility for sensitive stomachs.",
     smartTip: "Toss with chopped cucumber, tomato, lemon juice, and chaat masala for high-satiety snacking.",
   },
@@ -253,7 +281,8 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     name: "Savory Vegetable Masala Oats",
     hindiName: "मसाला ओट्स",
     category: "Breakfast & Light",
-    discoveryTags: ["Healthy Breakfast", "Weight Management", "Vegetarian", "Low Calorie"],
+    discoveryTags: ["Indian Cuisine", "Vegetarian", "Low Calorie", "Budget Friendly"],
+    imagePath: "/images/hero-bowl.jpg",
     servingLabel: "1 bowl cooked",
     servingGrams: 220,
     calories: 185,
@@ -261,6 +290,7 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 31.0,
     fats: 3.6,
     fiber: 5.2,
+    estimatedCostInr: 20,
     note: "Packaged flavored oats often contain extra sodium; plain rolled oats with veggies are cleaner.",
     smartTip: "Stir in 1 tbsp roasted flaxseed or pair with boiled egg whites / Greek yogurt for more protein.",
   },
@@ -269,7 +299,8 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     name: "Egg White & Whole Egg Bhurji",
     hindiName: "अंडा भुर्जी",
     category: "Protein & Paneer",
-    discoveryTags: ["High Protein", "Muscle Building", "Healthy Breakfast", "Weight Management"],
+    discoveryTags: ["Indian Cuisine", "High Protein", "Low Calorie", "Budget Friendly"],
+    imagePath: "/images/hero-bowl.jpg",
     servingLabel: "1 whole egg + 3 egg whites (1 tsp oil)",
     servingGrams: 165,
     calories: 158,
@@ -277,7 +308,26 @@ export const INDIAN_FOODS_DATA: IndianFoodItem[] = [
     carbs: 2.8,
     fats: 7.4,
     fiber: 0.6,
+    estimatedCostInr: 28,
     note: "Butter-laden street bhurji easily crosses 350 kcal; 1 tsp oil keeps macros lean.",
     smartTip: "Sauté with tomatoes, onions, and spinach and serve with 1 whole wheat phulka.",
+  },
+  {
+    id: "roasted-chana",
+    name: "Roasted Kala Chana & Peanut Mix",
+    hindiName: "भुना चना",
+    category: "Protein & Paneer",
+    discoveryTags: ["Indian Cuisine", "North Indian", "Vegetarian", "High Protein", "Budget Friendly"],
+    imagePath: "/images/healthy-swaps.jpg",
+    servingLabel: "50g dry roasted mix",
+    servingGrams: 50,
+    calories: 195,
+    protein: 10.6,
+    carbs: 25.5,
+    fats: 5.2,
+    fiber: 6.0,
+    estimatedCostInr: 12,
+    note: "One of the highest protein-per-rupee whole snacks in Indian households.",
+    smartTip: "Keep 50g portioned jars handy instead of fried namkeen or biscuits.",
   },
 ];

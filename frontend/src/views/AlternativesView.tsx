@@ -473,12 +473,71 @@ export function AlternativesView({
                 </select>
               </div>
 
-              <h3 className="mt-3 font-display text-lg font-bold text-white">
+              <div className="mb-3 overflow-hidden rounded-xl border border-white/[0.06]">
+                <img
+                  src={col.food.imagePath}
+                  alt={col.food.name}
+                  loading="lazy"
+                  className="aspect-[16/9] w-full object-cover"
+                />
+              </div>
+
+              <h3 className="font-display text-lg font-bold text-white">
                 {col.food.name}
               </h3>
               <p className="text-xs text-[#A1A1AA]">
                 {col.food.servingLabel} ({col.food.servingGrams}g)
               </p>
+
+              {/* Animated Visual Comparison Bars */}
+              <div className="mt-4 space-y-2 border-t border-white/[0.06] pt-3">
+                {[
+                  {
+                    label: "Calories",
+                    val: col.food.calories,
+                    max: Math.max(col.food.calories, col.other.calories, 1),
+                    unit: "kcal",
+                    bar: "bg-[#B6FF38]",
+                  },
+                  {
+                    label: "Protein",
+                    val: col.food.protein,
+                    max: Math.max(col.food.protein, col.other.protein, 1),
+                    unit: "g",
+                    bar: "bg-[#34D399]",
+                  },
+                  {
+                    label: "Fiber",
+                    val: col.food.fiber,
+                    max: Math.max(col.food.fiber, col.other.fiber, 1),
+                    unit: "g",
+                    bar: "bg-emerald-300",
+                  },
+                ].map((metric) => {
+                  const pct = Math.min(
+                    100,
+                    Math.max(4, Math.round((metric.val / metric.max) * 100)),
+                  );
+                  return (
+                    <div key={metric.label} className="space-y-1">
+                      <div className="flex justify-between font-mono text-[11px] text-[#A3ADA6]">
+                        <span>{metric.label}</span>
+                        <span className="font-semibold text-white">
+                          {metric.val} {metric.unit}
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
+                        <motion.div
+                          initial={prefersReduced ? false : { width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.5, ease: EASE_PREMIUM }}
+                          className={`h-full rounded-full ${metric.bar}`}
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
               <div className="mt-4 grid grid-cols-5 gap-2 font-mono text-xs tabular-nums">
                 <div className="rounded-xl bg-[#121212] p-2.5 text-center">

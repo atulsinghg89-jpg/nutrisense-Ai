@@ -1,5 +1,18 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { animate, motion, useReducedMotion, type Variants } from "framer-motion";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
+import {
+  animate,
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  type Variants,
+} from "framer-motion";
 
 export const EASE_PREMIUM: [number, number, number, number] = [0.22, 1, 0.36, 1];
 
@@ -123,5 +136,115 @@ export function AnimatedNumber({
       {formatted}
       {suffix}
     </span>
+  );
+}
+
+interface SplitTextProps {
+  text: string;
+  className?: string;
+  delay?: number;
+  mode?: "words" | "chars";
+}
+
+/** Editorial split-text reveal using transform & opacity, honoring reduced motion. */
+export function SplitText({
+  text,
+  className = "",
+  delay = 0,
+  mode = "words",
+}: SplitTextProps) {
+  const prefersReduced = useReducedMotion();
+  if (prefersReduced) {
+    return <span className={className}>{text}</span>;
+  }
+
+  const tokens = mode === "chars" ? Array.from(text) : text.split(" ");
+
+  return (
+    <span className={`inline-flex flex-wrap ${className}`}>
+      {tokens.map((token, idx) => (
+        <span
+          key={`${token}-${idx}`}
+          className="inline-block overflow-hidden align-bottom"
+        >
+          <motion.span
+            initial={{ y: "105%", opacity: 0 }}
+            animate={{ y: "0%", opacity: 1 }}
+            transition={{
+              duration: 0.48,
+              delay: delay + idx * (mode === "chars" ? 0.022 : 0.055),
+              ease: EASE_PREMIUM,
+            }}
+            className="inline-block"
+          >
+            {token}
+            {mode === "words" && idx < tokens.length - 1 ? "\u00A0" : ""}
+          </motion.span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+interface MagneticButtonProps {
+  children: ReactNode;
+  onClick?: () => void;
+  className?: string;
+  type?: "button" | "submit" | "reset";
+  disabled?: boolean;
+  ariaLabel?: string;
+}
+
+/** Subtle magnetic pointer-follow button on desktop hover, clean press feedback everywhere. */
+export function MagneticButton({
+  children,
+  onClick,
+  className = "",
+  type = "button",
+  disabled = false,
+  ariaLabel,
+}: MagneticButtonProps) {
+  const prefersReduced = useReducedMotion();
+  const ref = useRef<HTMLButtonElement | null>(null);
+  const rawX = useMotionValue(0);
+  const rawY = useMotionValue(0);
+  const springX = useSpring(rawX, { stiffness: 260, damping: 18, mass: 0.4 });
+  const springY = useSpring(rawY, { stiffness: 260, damping: 18, mass: 0.4 });
+
+  const handleMouseMove = (e: MouseEvent<HTMLButtonElement>) => {
+    if (prefersReduced || disabled) return;
+    if (typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches) {
+      return;
+    }
+    const el = ref.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const dx = e.clientX - (rect.left + rect.width / 2);
+    const dy = e.clientY - (rect.top + rect.height / 2);
+    rawX.set(dx * 0.16);
+    rawY.set(dy * 0.22);
+  };
+
+  const handleMouseLeave = () => {
+    rawX.set(0);
+    rawY.set(0);
+  };
+
+  return (
+    <motion.button
+      ref={ref}
+      type={type}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      onClick={onClick}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={prefersReduced ? undefined : { x: springX, y: springY }}
+      whileHover={prefersReduced || disabled ? undefined : { scale: 1.03 }}
+      whileTap={prefersReduced || disabled ? undefined : { scale: 0.97 }}
+      className={className}
+    >
+      {children}
+    </motion.button>
   );
 }

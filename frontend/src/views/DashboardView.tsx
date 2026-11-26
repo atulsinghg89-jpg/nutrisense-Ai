@@ -569,24 +569,104 @@ export function DashboardView({
                   </div>
                 </div>
 
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold uppercase tracking-wider text-[#34D399]">
-                    {dateScope === "today"
-                      ? "Today's Goal"
-                      : dateScope === "custom"
-                        ? customDate
-                        : "All Logged"}
-                  </p>
-                  <p className="mt-1 font-display text-lg font-bold text-white">
-                    {dailyTotals.meals}{" "}
-                    {dailyTotals.meals === 1 ? "meal" : "meals"}
-                  </p>
-                  <p className="mt-0.5 font-mono text-xs text-[#A1A1AA]">
-                    {Math.round(dailyTotals.portion_grams).toLocaleString()} g total
-                    weight
-                  </p>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-[#34D399]">
+                      {dateScope === "today"
+                        ? "Today's Goal"
+                        : dateScope === "custom"
+                          ? customDate
+                          : "All Logged"}
+                    </p>
+                    <p className="mt-1 font-display text-lg font-bold text-white">
+                      {dailyTotals.meals}{" "}
+                      {dailyTotals.meals === 1 ? "meal" : "meals"}
+                    </p>
+                    <p className="mt-0.5 font-mono text-xs text-[#A3ADA6]">
+                      {Math.round(dailyTotals.portion_grams).toLocaleString()} g total
+                      weight
+                    </p>
+
+                    {/* Animated Macro Rings (Protein, Carbs, Fats) */}
+                    <div className="mt-3 grid grid-cols-3 gap-2 border-t border-white/[0.07] pt-2.5">
+                      {[
+                        {
+                          label: "Protein",
+                          value: dailyTotals.protein,
+                          target: dailyTargets.protein,
+                          color: "#34D399",
+                        },
+                        {
+                          label: "Carbs",
+                          value: dailyTotals.carbs,
+                          target: dailyTargets.carbs,
+                          color: "#B6FF38",
+                        },
+                        {
+                          label: "Fats",
+                          value: dailyTotals.fats,
+                          target: dailyTargets.fats,
+                          color: "#A3ADA6",
+                        },
+                      ].map((ring) => {
+                        const pct = Math.min(
+                          100,
+                          Math.round(
+                            (ring.value / Math.max(ring.target, 1)) * 100,
+                          ),
+                        );
+                        const circumference = 2 * Math.PI * 14;
+                        const offset =
+                          circumference - (pct / 100) * circumference;
+
+                        return (
+                          <div
+                            key={ring.label}
+                            className="flex flex-col items-center rounded-xl bg-[#080B09] px-1.5 py-2"
+                          >
+                            <div className="relative flex h-9 w-9 items-center justify-center">
+                              <svg
+                                className="h-9 w-9 -rotate-90"
+                                viewBox="0 0 36 36"
+                              >
+                                <circle
+                                  cx="18"
+                                  cy="18"
+                                  r="14"
+                                  fill="none"
+                                  stroke="rgba(255,255,255,0.08)"
+                                  strokeWidth="3.5"
+                                />
+                                <motion.circle
+                                  cx="18"
+                                  cy="18"
+                                  r="14"
+                                  fill="none"
+                                  stroke={ring.color}
+                                  strokeWidth="3.5"
+                                  strokeLinecap="round"
+                                  strokeDasharray={circumference}
+                                  initial={
+                                    prefersReduced
+                                      ? false
+                                      : { strokeDashoffset: circumference }
+                                  }
+                                  animate={{ strokeDashoffset: offset }}
+                                  transition={{ duration: 0.7, ease: EASE_PREMIUM }}
+                                />
+                              </svg>
+                              <span className="absolute font-mono text-[9px] font-bold text-white tabular-nums">
+                                {pct}%
+                              </span>
+                            </div>
+                            <span className="mt-1 text-[9px] font-semibold text-[#A3ADA6]">
+                              {ring.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-              </div>
 
               <div className="flex flex-col justify-between rounded-2xl border border-white/[0.08] bg-[#121212] p-5">
                 <div className="flex items-center justify-between">
@@ -1079,10 +1159,10 @@ function WeeklyInsightsSection({
 
       {/* Charts + Most Frequently Logged Meals */}
       <div className="mt-6 grid gap-6 lg:grid-cols-12">
-        <div className="rounded-2xl border border-white/[0.07] bg-[#0A0A0A] p-5 lg:col-span-4">
+        <div className="rounded-2xl border border-white/10 bg-[#080B09] p-5 lg:col-span-4">
           <div className="mb-3 flex items-center justify-between text-xs">
             <span className="font-semibold text-white">Daily Calories (7d)</span>
-            <span className="font-mono text-[11px] text-[#A1A1AA]">
+            <span className="font-mono text-[11px] text-[#A3ADA6]">
               Goal {dailyTargets.calories}
             </span>
           </div>
@@ -1096,25 +1176,34 @@ function WeeklyInsightsSection({
               return (
                 <div
                   key={`kcal-${d.ymd}`}
-                  className="flex h-full flex-col items-center justify-end gap-1.5"
+                  tabIndex={0}
+                  className="group/bar relative flex h-full cursor-pointer flex-col items-center justify-end gap-1.5 outline-none"
                 >
-                  <span className="font-mono text-[10px] text-[#A1A1AA] tabular-nums">
+                  {/* Interactive Hover Tooltip */}
+                  <div className="pointer-events-none absolute -top-9 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-lg border border-[#B6FF38]/40 bg-[#141B16] px-2 py-1 font-mono text-[10px] text-white opacity-0 shadow-lg transition duration-150 group-hover/bar:opacity-100 group-focus-within/bar:opacity-100">
+                    <span className="font-bold text-[#B6FF38]">
+                      {Math.round(d.calories)} kcal
+                    </span>{" "}
+                    <span className="text-[#A3ADA6]">({d.ymd.slice(5)})</span>
+                  </div>
+
+                  <span className="font-mono text-[10px] text-[#A3ADA6] tabular-nums">
                     {d.calories > 0 ? Math.round(d.calories) : "0"}
                   </span>
-                  <div className="flex h-28 w-full items-end justify-center rounded-lg bg-white/[0.03] p-1">
+                  <div className="flex h-28 w-full items-end justify-center rounded-lg bg-white/[0.03] p-1 transition group-hover/bar:bg-white/[0.07]">
                     <motion.div
                       initial={{ height: 0 }}
                       animate={{ height: `${heightPct}%` }}
                       transition={{ duration: 0.5, ease: EASE_PREMIUM }}
-                      className={`w-full rounded-md ${
+                      className={`w-full rounded-md transition-shadow ${
                         d.calories > 0
-                          ? "bg-gradient-to-t from-[#34D399] to-[#A3FF12]"
+                          ? "bg-gradient-to-t from-[#34D399] to-[#B6FF38] group-hover/bar:shadow-[0_0_12px_rgba(182,255,56,0.45)]"
                           : "bg-white/[0.08]"
                       }`}
                       title={`${d.ymd}: ${d.calories} kcal`}
                     />
                   </div>
-                  <span className="text-[10px] font-medium text-zinc-400">
+                  <span className="text-[10px] font-medium text-zinc-400 group-hover/bar:text-white">
                     {d.shortLabel}
                   </span>
                 </div>
@@ -1123,7 +1212,7 @@ function WeeklyInsightsSection({
           </div>
         </div>
 
-        <div className="rounded-2xl border border-white/[0.07] bg-[#0A0A0A] p-5 lg:col-span-4">
+        <div className="rounded-2xl border border-white/10 bg-[#080B09] p-5 lg:col-span-4">
           <div className="mb-3 flex items-center justify-between text-xs">
             <span className="font-semibold text-white">Protein Intake (7d)</span>
             <span className="font-mono text-[11px] text-[#34D399]">
@@ -1140,23 +1229,34 @@ function WeeklyInsightsSection({
               return (
                 <div
                   key={`pro-${d.ymd}`}
-                  className="flex h-full flex-col items-center justify-end gap-1.5"
+                  tabIndex={0}
+                  className="group/bar relative flex h-full cursor-pointer flex-col items-center justify-end gap-1.5 outline-none"
                 >
-                  <span className="font-mono text-[10px] text-[#A1A1AA] tabular-nums">
+                  {/* Interactive Hover Tooltip */}
+                  <div className="pointer-events-none absolute -top-9 left-1/2 z-20 -translate-x-1/2 whitespace-nowrap rounded-lg border border-[#34D399]/40 bg-[#141B16] px-2 py-1 font-mono text-[10px] text-white opacity-0 shadow-lg transition duration-150 group-hover/bar:opacity-100 group-focus-within/bar:opacity-100">
+                    <span className="font-bold text-[#34D399]">
+                      {Math.round(d.protein)}g P
+                    </span>{" "}
+                    <span className="text-[#A3ADA6]">({d.ymd.slice(5)})</span>
+                  </div>
+
+                  <span className="font-mono text-[10px] text-[#A3ADA6] tabular-nums">
                     {d.protein > 0 ? `${Math.round(d.protein)}g` : "0"}
                   </span>
-                  <div className="flex h-28 w-full items-end justify-center rounded-lg bg-white/[0.03] p-1">
+                  <div className="flex h-28 w-full items-end justify-center rounded-lg bg-white/[0.03] p-1 transition group-hover/bar:bg-white/[0.07]">
                     <motion.div
                       initial={{ height: 0 }}
                       animate={{ height: `${heightPct}%` }}
                       transition={{ duration: 0.5, ease: EASE_PREMIUM }}
-                      className={`w-full rounded-md ${
-                        d.protein > 0 ? "bg-[#34D399]" : "bg-white/[0.08]"
+                      className={`w-full rounded-md transition-shadow ${
+                        d.protein > 0
+                          ? "bg-[#34D399] group-hover/bar:shadow-[0_0_12px_rgba(52,211,153,0.45)]"
+                          : "bg-white/[0.08]"
                       }`}
                       title={`${d.ymd}: ${d.protein}g protein`}
                     />
                   </div>
-                  <span className="text-[10px] font-medium text-zinc-400">
+                  <span className="text-[10px] font-medium text-zinc-400 group-hover/bar:text-white">
                     {d.shortLabel}
                   </span>
                 </div>

@@ -10,6 +10,7 @@ import {
   Flame,
   HeartHandshake,
   HeartPulse,
+  IndianRupee,
   LayoutDashboard,
   Scale,
   ShieldCheck,
@@ -26,7 +27,9 @@ import { MacroProgressBars } from "../components/MacroProgressBars";
 import {
   AnimatedNumber,
   EASE_PREMIUM,
+  MagneticButton,
   RevealSection,
+  SplitText,
   staggerContainerVariants,
   staggerItemVariants,
 } from "../components/MotionPrimitives";
@@ -141,35 +144,35 @@ export function HomeView({
 
   return (
     <div className="space-y-20 pb-8">
-      {/* 1. Full-Screen Cinematic Hero with Animated Circuit Lines & Ambient Glow */}
-      <section className="relative overflow-hidden rounded-[2.25rem] border border-white/10 bg-[#050706] px-6 py-12 sm:px-10 sm:py-16 lg:min-h-[84vh] lg:flex lg:flex-col lg:justify-center lg:px-14 lg:py-20">
+      {/* 1. Ultra-Premium Full-Screen Hero with Split-Text, Magnetic CTAs & Layered Indian Food Composition */}
+      <section className="relative overflow-hidden rounded-[2.25rem] border border-white/10 bg-[#080B09] px-6 py-12 sm:px-10 sm:py-16 lg:min-h-[84vh] lg:flex lg:flex-col lg:justify-center lg:px-14 lg:py-20">
         {/* Animated Circuit Lines + Drifting Particles */}
         <CircuitLines variant="hero" />
 
-        {/* Subtle neon lime and mint ambient glow */}
+        {/* Subtle organic gradient aura lighting */}
         <motion.div
           aria-hidden="true"
           animate={
             prefersReduced
               ? undefined
-              : { y: [0, -16, 0], opacity: [0.14, 0.24, 0.14] }
+              : { scale: [1, 1.08, 1], y: [0, -16, 0], opacity: [0.15, 0.25, 0.15] }
           }
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="pointer-events-none absolute -top-28 -right-20 h-[420px] w-[420px] rounded-full bg-[#A3FF12] blur-[140px]"
+          className="pointer-events-none absolute -top-28 -right-20 h-[440px] w-[440px] rounded-full bg-[#B6FF38] blur-[150px]"
         />
         <motion.div
           aria-hidden="true"
           animate={
             prefersReduced
               ? undefined
-              : { y: [0, 14, 0], opacity: [0.12, 0.2, 0.12] }
+              : { scale: [1, 1.06, 1], y: [0, 14, 0], opacity: [0.12, 0.22, 0.12] }
           }
           transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-          className="pointer-events-none absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-[#34D399] blur-[130px]"
+          className="pointer-events-none absolute -bottom-32 -left-20 h-96 w-96 rounded-full bg-[#34D399] blur-[135px]"
         />
 
         <div className="relative z-10 grid w-full items-center gap-12 lg:grid-cols-12">
-          {/* Left Typography & CTAs with Staggered Reveal */}
+          {/* Left Typography & Magnetic CTAs */}
           <motion.div
             initial={prefersReduced ? false : "hidden"}
             animate="visible"
@@ -181,81 +184,69 @@ export function HomeView({
               className="inline-flex items-center gap-2 rounded-full border border-[#34D399]/35 bg-[#34D399]/10 px-3.5 py-1.5 text-xs font-semibold tracking-wide text-[#34D399]"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              <span>AI-Powered Precision Nutrition Platform</span>
+              <span>AI-Powered Indian Nutrition Intelligence</span>
             </motion.div>
 
-            <motion.h1
-              variants={staggerItemVariants}
-              className="font-display text-4xl leading-[1.05] font-extrabold tracking-tight text-white sm:text-5xl lg:text-[3.75rem]"
-            >
-              Understand Your Food.{" "}
-              <span className="block bg-gradient-to-r from-[#A3FF12] via-[#86efac] to-[#34D399] bg-clip-text text-transparent">
-                Transform Your Health.
+            <h1 className="font-display text-4xl leading-[1.03] font-extrabold tracking-tight text-white sm:text-5xl lg:text-[4rem]">
+              <SplitText text="Your Food." delay={0.04} className="block" />
+              <SplitText text="Your Health." delay={0.14} className="block" />
+              <span className="mt-1 inline-block text-glow-lime bg-gradient-to-r from-[#B6FF38] via-[#86efac] to-[#34D399] bg-clip-text text-transparent">
+                <SplitText text="Your Intelligence." delay={0.24} mode="chars" />
               </span>
-            </motion.h1>
+            </h1>
 
             <motion.p
               variants={staggerItemVariants}
-              className="max-w-xl text-base leading-relaxed text-[#A1A1AA] sm:text-lg"
+              className="max-w-xl text-base leading-relaxed text-[#A3ADA6] sm:text-lg"
             >
               Discover what&apos;s on your plate, understand your nutrition and
-              make smarter food decisions with the power of AI.
+              make smarter food choices with AI.
             </motion.p>
 
-            {/* Primary & Secondary CTAs */}
+            {/* Primary Magnetic & Secondary CTAs */}
             <motion.div
               variants={staggerItemVariants}
               className="flex flex-wrap items-center gap-3.5 pt-1"
             >
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.98 }}
+              <MagneticButton
                 onClick={() => {
                   document
                     .getElementById("storytelling")
                     ?.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="inline-flex items-center gap-2.5 rounded-full bg-[#A3FF12] px-6 py-3.5 text-sm font-bold text-[#0A0A0A] shadow-[0_0_32px_rgba(163,255,18,0.3)] transition hover:bg-[#b5ff3b] focus:ring-2 focus:ring-[#A3FF12] focus:ring-offset-2 focus:ring-offset-[#050706] focus:outline-none"
+                className="inline-flex items-center gap-2.5 rounded-full bg-[#B6FF38] px-6 py-3.5 text-sm font-bold text-[#080B09] shadow-[0_0_32px_rgba(182,255,56,0.32)] transition hover:bg-[#c8ff66] focus:ring-2 focus:ring-[#B6FF38] focus:ring-offset-2 focus:ring-offset-[#080B09] focus:outline-none"
               >
                 <Sparkles className="h-4 w-4" />
-                <span>Explore NutriSense AI</span>
+                <span>Explore NutriSense</span>
                 <ArrowRight className="h-4 w-4" />
-              </motion.button>
+              </MagneticButton>
 
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={onOpenOnboarding}
-                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-5 py-3.5 text-sm font-semibold text-white transition hover:border-[#A3FF12]/50 hover:bg-white/[0.08]"
-              >
-                <span>
-                  {profileName ? `Goal Plan: ${profileName}` : "Start Your Journey"}
-                </span>
-              </motion.button>
-
-              <motion.button
-                type="button"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+              <MagneticButton
                 onClick={() => onNavigate("scanner")}
-                className="inline-flex items-center gap-2 rounded-full border border-[#34D399]/35 bg-[#34D399]/10 px-4 py-3 text-sm font-semibold text-[#34D399] transition hover:bg-[#34D399]/20"
+                className="inline-flex items-center gap-2 rounded-full border border-[#34D399]/40 bg-[#34D399]/12 px-5 py-3.5 text-sm font-bold text-[#34D399] transition hover:bg-[#34D399]/22"
               >
                 <Camera className="h-4 w-4" />
-                <span>Launch AI Scanner</span>
-              </motion.button>
+                <span>Scan Your Food</span>
+              </MagneticButton>
+
+              <button
+                type="button"
+                onClick={onOpenOnboarding}
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-4 py-3.5 text-sm font-semibold text-white transition hover:border-[#B6FF38]/50 hover:bg-white/[0.08]"
+              >
+                <span>
+                  {profileName ? `Profile: ${profileName}` : "Start Journey"}
+                </span>
+              </button>
 
               {hasActiveScan && (
-                <motion.button
+                <button
                   type="button"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
                   onClick={() => onNavigate("alternatives")}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#121212] px-4 py-3 text-sm font-medium text-zinc-200 transition hover:border-[#34D399]/50"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#141B16] px-4 py-3 text-sm font-medium text-zinc-200 transition hover:border-[#34D399]/50"
                 >
                   <span>Latest 3 Swaps</span>
-                </motion.button>
+                </button>
               )}
             </motion.div>
 
@@ -301,8 +292,8 @@ export function HomeView({
             <div className="relative overflow-hidden rounded-3xl border border-white/[0.1] bg-[#0A0A0A] p-3 shadow-[0_24px_80px_rgba(0,0,0,0.8)]">
               <div className="group relative overflow-hidden rounded-2xl">
                 <img
-                  src="/images/hero-bowl.jpg"
-                  alt="Balanced grilled salmon, quinoa, avocado, broccolini, and sweet potato nutrition bowl"
+                  src="/images/indian-hero-bowl.jpg"
+                  alt="Balanced Indian nourish bowl with grilled paneer, millet khichdi, sprouted moong salad, avocado, and mint chutney"
                   className="aspect-[4/3] w-full object-cover transition duration-700 group-hover:scale-[1.03]"
                 />
                 <div
@@ -675,7 +666,7 @@ export function HomeView({
             </p>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
             <button
               type="button"
               onClick={onOpenAssistant}
@@ -738,8 +729,28 @@ export function HomeView({
 
             <button
               type="button"
+              onClick={() => onNavigate("budget")}
+              className="group rounded-2xl border border-white/10 bg-[#141B16] p-5 text-left transition hover:border-[#B6FF38]/45 hover:bg-[#19221C]"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#B6FF38]/35 bg-[#B6FF38]/10 text-[#B6FF38]">
+                <IndianRupee className="h-5 w-5" />
+              </div>
+              <h3 className="mt-4 font-display text-base font-bold text-white group-hover:text-[#B6FF38]">
+                Budget Nutrition (₹50–₹200)
+              </h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-[#A3ADA6]">
+                Protein-per-rupee Indian meal plans and weekly grocery cost
+                breakdowns across ₹50–₹200/day.
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#B6FF38]">
+                Explore Budget Plans <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </button>
+
+            <button
+              type="button"
               onClick={() => onNavigate("grocery")}
-              className="group rounded-2xl border border-white/[0.08] bg-[#121212] p-5 text-left transition hover:border-[#34D399]/45 hover:bg-[#171717]"
+              className="group rounded-2xl border border-white/10 bg-[#141B16] p-5 text-left transition hover:border-[#34D399]/45 hover:bg-[#19221C]"
             >
               <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#34D399]/35 bg-[#34D399]/10 text-[#34D399]">
                 <ShoppingBasket className="h-5 w-5" />
@@ -747,7 +758,7 @@ export function HomeView({
               <h3 className="mt-4 font-display text-base font-bold text-white group-hover:text-[#34D399]">
                 Smart Grocery List
               </h3>
-              <p className="mt-1.5 text-xs leading-relaxed text-[#A1A1AA]">
+              <p className="mt-1.5 text-xs leading-relaxed text-[#A3ADA6]">
                 Categorized checklist synced directly from your Weekly Meal
                 Planner with check-off persistence.
               </p>
@@ -865,7 +876,7 @@ export function HomeView({
             </button>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
             {BENEFITS.map((benefit) => {
               const Icon = benefit.icon;
               return (

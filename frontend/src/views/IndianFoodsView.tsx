@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ArrowRight,
   ArrowUpDown,
   Camera,
   Check,
@@ -250,84 +251,108 @@ export function IndianFoodsView({
               <motion.article
                 key={food.id}
                 variants={staggerItemVariants}
-                className="flex flex-col justify-between rounded-2xl border border-white/[0.08] bg-[#121212] p-5 transition hover:border-[#34D399]/40"
+                whileHover={{ y: -4 }}
+                className="group flex flex-col justify-between overflow-hidden rounded-2xl border border-white/10 bg-[#141B16] transition-colors hover:border-[#B6FF38]/45"
               >
                 <div>
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <span className="inline-block rounded-full border border-[#34D399]/30 bg-[#34D399]/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#34D399]">
-                        {food.category}
-                      </span>
-                      <h2 className="mt-2 font-display text-lg font-bold text-white">
-                        {food.name}
-                      </h2>
-                      <p className="text-xs text-[#A1A1AA]">
-                        {food.hindiName} • {food.servingLabel} (
-                        {Math.round(food.servingGrams * mult)}g)
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-[#A3FF12]/25 bg-[#0A0A0A] px-3 py-1.5 text-right font-mono">
-                      <p className="text-base font-bold text-[#A3FF12] tabular-nums">
-                        {Math.round(food.calories * mult)}
-                      </p>
-                      <p className="text-[10px] text-zinc-400">kcal</p>
-                    </div>
-                  </div>
-
-                  {/* Serving Multiplier Buttons */}
-                  <div className="mt-4 flex items-center justify-between rounded-xl border border-white/[0.06] bg-[#0A0A0A] px-3 py-2">
-                    <span className="inline-flex items-center gap-1.5 text-[11px] text-[#A1A1AA]">
-                      <Scale className="h-3.5 w-3.5 text-[#34D399]" />
-                      Servings
+                  {/* High-Resolution Editorial Food Photography Header */}
+                  <button
+                    type="button"
+                    onClick={() => setDetailFood(food)}
+                    className="relative block w-full overflow-hidden text-left focus:outline-none"
+                  >
+                    <img
+                      src={food.imagePath}
+                      alt={food.name}
+                      loading="lazy"
+                      className="aspect-[16/9] w-full object-cover transition duration-500 group-hover:scale-105"
+                    />
+                    <div
+                      aria-hidden="true"
+                      className="absolute inset-0 bg-gradient-to-t from-[#141B16] via-[#080B09]/25 to-transparent"
+                    />
+                    <span className="glass-surface absolute top-3 left-3 rounded-full border border-white/15 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-[#34D399]">
+                      {food.category}
                     </span>
-                    <div className="flex items-center gap-1">
-                      {[0.5, 1, 1.5, 2].map((step) => (
-                        <button
-                          key={step}
-                          type="button"
-                          onClick={() => setMultiplier(food.id, step)}
-                          className={`rounded-lg px-2 py-0.5 font-mono text-xs font-semibold transition ${
-                            mult === step
-                              ? "bg-[#A3FF12] text-[#0A0A0A]"
-                              : "text-zinc-400 hover:bg-white/[0.08] hover:text-white"
-                          }`}
-                        >
-                          {step}x
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                    <span className="glass-surface absolute top-3 right-3 rounded-full border border-[#B6FF38]/35 px-2.5 py-0.5 font-mono text-[11px] font-bold text-[#B6FF38]">
+                      ~₹{food.estimatedCostInr}
+                    </span>
+                  </button>
 
-                  {/* Macro Tiles */}
-                  <div className="mt-4 grid grid-cols-4 gap-2 font-mono text-xs tabular-nums">
-                    <div className="rounded-xl border border-white/[0.06] bg-[#0A0A0A] p-2.5 text-center">
-                      <p className="text-[10px] text-[#A1A1AA]">Protein</p>
-                      <p className="mt-0.5 font-bold text-[#34D399]">
-                        {(food.protein * mult).toFixed(1)}g
-                      </p>
+                  <div className="px-5 pt-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <h2 className="font-display text-lg font-bold text-white transition-colors group-hover:text-[#B6FF38]">
+                          {food.name}
+                        </h2>
+                        <p className="text-xs text-[#A3ADA6]">
+                          {food.hindiName} • {food.servingLabel} (
+                          {Math.round(food.servingGrams * mult)}g)
+                        </p>
+                      </div>
+                      <div className="shrink-0 rounded-xl border border-[#B6FF38]/25 bg-[#080B09] px-3 py-1.5 text-right font-mono">
+                        <p className="text-base font-bold text-[#B6FF38] tabular-nums">
+                          {Math.round(food.calories * mult)}
+                        </p>
+                        <p className="text-[10px] text-zinc-400">kcal</p>
+                      </div>
                     </div>
-                    <div className="rounded-xl border border-white/[0.06] bg-[#0A0A0A] p-2.5 text-center">
-                      <p className="text-[10px] text-[#A1A1AA]">Carbs</p>
-                      <p className="mt-0.5 font-bold text-emerald-300">
-                        {(food.carbs * mult).toFixed(1)}g
-                      </p>
+
+                    {/* Serving Multiplier Buttons */}
+                    <div className="mt-4 flex items-center justify-between rounded-xl border border-white/[0.06] bg-[#080B09] px-3 py-2">
+                      <span className="inline-flex items-center gap-1.5 text-[11px] text-[#A3ADA6]">
+                        <Scale className="h-3.5 w-3.5 text-[#34D399]" />
+                        Servings
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {[0.5, 1, 1.5, 2].map((step) => (
+                          <button
+                            key={step}
+                            type="button"
+                            onClick={() => setMultiplier(food.id, step)}
+                            className={`rounded-lg px-2 py-0.5 font-mono text-xs font-semibold transition ${
+                              mult === step
+                                ? "bg-[#B6FF38] text-[#080B09]"
+                                : "text-zinc-400 hover:bg-white/[0.08] hover:text-white"
+                            }`}
+                          >
+                            {step}x
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="rounded-xl border border-white/[0.06] bg-[#0A0A0A] p-2.5 text-center">
-                      <p className="text-[10px] text-[#A1A1AA]">Fats</p>
-                      <p className="mt-0.5 font-bold text-lime-200">
-                        {(food.fats * mult).toFixed(1)}g
-                      </p>
-                    </div>
-                    <div className="rounded-xl border border-white/[0.06] bg-[#0A0A0A] p-2.5 text-center">
-                      <p className="text-[10px] text-[#A1A1AA]">Fiber</p>
-                      <p className="mt-0.5 font-bold text-zinc-200">
-                        {(food.fiber * mult).toFixed(1)}g
-                      </p>
+
+                    {/* Macro Tiles */}
+                    <div className="mt-4 grid grid-cols-4 gap-2 font-mono text-xs tabular-nums">
+                      <div className="rounded-xl border border-white/[0.06] bg-[#080B09] p-2.5 text-center">
+                        <p className="text-[10px] text-[#A3ADA6]">Protein</p>
+                        <p className="mt-0.5 font-bold text-[#34D399]">
+                          {(food.protein * mult).toFixed(1)}g
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-white/[0.06] bg-[#080B09] p-2.5 text-center">
+                        <p className="text-[10px] text-[#A3ADA6]">Carbs</p>
+                        <p className="mt-0.5 font-bold text-emerald-300">
+                          {(food.carbs * mult).toFixed(1)}g
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-white/[0.06] bg-[#080B09] p-2.5 text-center">
+                        <p className="text-[10px] text-[#A3ADA6]">Fats</p>
+                        <p className="mt-0.5 font-bold text-lime-200">
+                          {(food.fats * mult).toFixed(1)}g
+                        </p>
+                      </div>
+                      <div className="rounded-xl border border-white/[0.06] bg-[#080B09] p-2.5 text-center">
+                        <p className="text-[10px] text-[#A3ADA6]">Fiber</p>
+                        <p className="mt-0.5 font-bold text-zinc-200">
+                          {(food.fiber * mult).toFixed(1)}g
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <div className="mt-4 space-y-2 border-t border-white/[0.07] pt-3 text-xs">
+                <div className="mt-4 space-y-2 border-t border-white/[0.07] px-5 pt-3 pb-5 text-xs">
                   <p className="flex items-start gap-1.5 text-[#34D399]">
                     <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <span>{food.smartTip}</span>
@@ -336,9 +361,10 @@ export function IndianFoodsView({
                     <button
                       type="button"
                       onClick={() => setDetailFood(food)}
-                      className="text-[11px] font-semibold text-white/80 hover:text-[#A3FF12] hover:underline"
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-white/80 transition hover:text-[#B6FF38]"
                     >
-                      Nutritional notes →
+                      <span>Details</span>
+                      <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
                     </button>
 
                     <button
@@ -347,8 +373,8 @@ export function IndianFoodsView({
                       onClick={() => void handleQuickLogFood(food, mult)}
                       className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-[11px] font-bold transition ${
                         loggedFoodIds[food.id]
-                          ? "bg-[#34D399] text-[#0A0A0A]"
-                          : "border border-[#A3FF12]/40 bg-[#A3FF12]/10 text-[#A3FF12] hover:bg-[#A3FF12] hover:text-[#0A0A0A]"
+                          ? "bg-[#34D399] text-[#080B09]"
+                          : "border border-[#B6FF38]/40 bg-[#B6FF38]/10 text-[#B6FF38] hover:bg-[#B6FF38] hover:text-[#080B09]"
                       } disabled:opacity-50`}
                     >
                       {loggingFoodId === food.id ? (

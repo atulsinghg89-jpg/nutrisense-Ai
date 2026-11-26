@@ -3,8 +3,10 @@ import { motion } from "framer-motion";
 import {
   Activity,
   AlertCircle,
+  ArrowLeftRight,
   CalendarDays,
   Check,
+  IndianRupee,
   Info,
   Loader2,
   Scale,
@@ -13,6 +15,7 @@ import {
   Target,
   Wallet,
 } from "lucide-react";
+import { AnimatedNumber } from "../components/MotionPrimitives";
 import { generateAiMealPlan } from "../lib/api";
 import {
   calculateBMI,
@@ -28,6 +31,151 @@ import type {
   UserNutritionProfile,
 } from "../types/nutrition";
 import { loadGroceryList, saveGroceryList } from "./GroceryListView";
+
+type MealSlotKey = "breakfast" | "lunch" | "snack" | "dinner";
+
+interface MealSwapOption {
+  text: string;
+  calories: number;
+  protein: number;
+}
+
+const MEAL_SWAP_OPTIONS: Record<MealSlotKey, MealSwapOption[]> = {
+  breakfast: [
+    {
+      text: "Moong Dal Chilla (2) + Stuffed Paneer + Mint Chutney",
+      calories: 390,
+      protein: 21,
+    },
+    {
+      text: "Poha (1 bowl) with Roasted Peanuts + Curd (150g)",
+      calories: 340,
+      protein: 11,
+    },
+    {
+      text: "3 Steamed Idli + Vegetable Sambar + Coconut Chutney",
+      calories: 320,
+      protein: 12,
+    },
+    {
+      text: "Masala Oats Upma + 2 Boiled Egg Whites / Sprouts",
+      calories: 365,
+      protein: 17,
+    },
+  ],
+  lunch: [
+    {
+      text: "2 Phulka Rotis + Yellow Dal Tadka + Salad + Dahi",
+      calories: 520,
+      protein: 22,
+    },
+    {
+      text: "Rajma Masala (1 bowl) + Jeera Rice + Cucumber Kachumber",
+      calories: 560,
+      protein: 19,
+    },
+    {
+      text: "Palak Paneer + 2 Whole Wheat Rotis + Green Salad",
+      calories: 590,
+      protein: 26,
+    },
+    {
+      text: "Chole (1 bowl) + Brown Rice + Jeera Buttermilk",
+      calories: 545,
+      protein: 18,
+    },
+  ],
+  snack: [
+    {
+      text: "Roasted Chana (40g) + Lemon Green Tea + 1 Apple",
+      calories: 195,
+      protein: 11,
+    },
+    {
+      text: "Sprouts Chaat with Onion, Tomato, Coriander & Lemon",
+      calories: 180,
+      protein: 12,
+    },
+    {
+      text: "Roasted Makhana (30g) + Spiced Salted Chaas",
+      calories: 165,
+      protein: 7,
+    },
+    {
+      text: "Spiced Curd (150g) + Chia Seeds + Roasted Almonds (12g)",
+      calories: 210,
+      protein: 10,
+    },
+  ],
+  dinner: [
+    {
+      text: "Paneer Bhurji (120g) + 2 Phulka Rotis + Cucumber Salad",
+      calories: 490,
+      protein: 26,
+    },
+    {
+      text: "Moong Dal Khichdi (1 bowl) + Roasted Papad + Curd",
+      calories: 430,
+      protein: 16,
+    },
+    {
+      text: "Soya Chunks Bhurji (45g dry) + 2 Whole Wheat Rotis",
+      calories: 445,
+      protein: 28,
+    },
+    {
+      text: "Tofu & Mixed Veg Stir-Fry + 1 Jowar Bhakri + Mint Chutney",
+      calories: 420,
+      protein: 22,
+    },
+  ],
+};
+
+const SLOT_BASELINE: Record<MealSlotKey, { calories: number; protein: number }> = {
+  breakfast: { calories: 350, protein: 14 },
+  lunch: { calories: 550, protein: 20 },
+  snack: { calories: 185, protein: 10 },
+  dinner: { calories: 455, protein: 22 },
+};
+
+function swapSlotInPlan(
+  days: MealPlanDay[],
+  dayName: string,
+  slotKey: MealSlotKey,
+  storageKey: string,
+): MealPlanDay[] {
+  const pool = MEAL_SWAP_OPTIONS[slotKey];
+  const nextDays = days.map((day) => {
+    if (day.day !== dayName) return day;
+
+    const currentText = day[slotKey];
+    const currentIndex = pool.findIndex((item) => item.text === currentText);
+    const nextOption = pool[(currentIndex + 1) % pool.length];
+    const previousEstimate =
+      currentIndex >= 0 ? pool[currentIndex] : SLOT_BASELINE[slotKey];
+
+    return {
+      ...day,
+      [slotKey]: nextOption.text,
+      estimated_calories: Math.max(
+        900,
+        Math.round(day.estimated_calories - previousEstimate.calories + nextOption.calories),
+      ),
+      estimated_protein_g: Math.max(
+        25,
+        Math.round(day.estimated_protein_g - previousEstimate.protein + nextOption.protein),
+      ),
+    };
+  });
+
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(nextDays));
+  } catch {
+    // Ignore storage quota errors
+  }
+
+  return nextDays;
+}
 
 const PLANNER_STORAGE_KEY = "nutrisense_weekly_meal_plan_v1";
 
@@ -277,9 +425,17 @@ export function MealPlannerView({
             <button
               type="button"
               onClick={() => onNavigate("grocery")}
-              className="rounded-full border border-white/15 bg-[#171717] px-4 py-2 text-xs font-semibold text-white transition hover:border-white/30"
+              className="rounded-full border border-white/15 bg-[#141B16] px-4 py-2 text-xs font-semibold text-white transition hover:border-white/30"
             >
               View Checklist
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate("budget")}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#B6FF38]/35 bg-[#B6FF38]/10 px-4 py-2 text-xs font-semibold text-[#B6FF38] transition hover:bg-[#B6FF38]/20"
+            >
+              <IndianRupee className="h-3.5 w-3.5" />
+              <span>Budget ₹50–₹200</span>
             </button>
           </div>
         </div>
@@ -650,38 +806,60 @@ export function MealPlannerView({
             key={day.day}
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="flex flex-col justify-between rounded-2xl border border-white/[0.08] bg-[#121212] p-5 transition hover:border-[#A3FF12]/35"
+            className="flex flex-col justify-between rounded-2xl border border-white/10 bg-[#141B16] p-5 transition hover:border-[#B6FF38]/40"
           >
             <div>
-              <div className="flex items-center justify-between border-b border-white/[0.07] pb-3">
+              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3">
                 <h2 className="font-display text-lg font-bold text-white">
                   {day.day}
                 </h2>
                 <div className="flex items-center gap-2 font-mono text-xs">
-                  <span className="rounded-lg bg-[#0A0A0A] px-2.5 py-1 font-bold text-[#A3FF12]">
-                    ~{day.estimated_calories} kcal
+                  <span className="rounded-lg bg-[#080B09] px-2.5 py-1 font-bold text-[#B6FF38]">
+                    ~<AnimatedNumber value={day.estimated_calories} /> kcal
                   </span>
-                  <span className="rounded-lg bg-[#0A0A0A] px-2.5 py-1 font-semibold text-[#34D399]">
-                    ~{day.estimated_protein_g}g P
+                  <span className="rounded-lg bg-[#080B09] px-2.5 py-1 font-semibold text-[#34D399]">
+                    ~<AnimatedNumber value={day.estimated_protein_g} />g P
                   </span>
                 </div>
               </div>
 
               <div className="mt-4 space-y-3 text-xs">
-                {[
-                  { label: "Breakfast", text: day.breakfast },
-                  { label: "Lunch", text: day.lunch },
-                  { label: "Snack", text: day.snack },
-                  { label: "Dinner", text: day.dinner },
-                ].map((slot) => (
+                {(
+                  [
+                    { key: "breakfast" as const, label: "Breakfast", text: day.breakfast },
+                    { key: "lunch" as const, label: "Lunch", text: day.lunch },
+                    { key: "snack" as const, label: "Snack", text: day.snack },
+                    { key: "dinner" as const, label: "Dinner", text: day.dinner },
+                  ]
+                ).map((slot) => (
                   <div
                     key={slot.label}
-                    className="rounded-xl border border-white/[0.05] bg-[#0A0A0A] p-3"
+                    className="rounded-xl border border-white/[0.06] bg-[#080B09] p-3"
                   >
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#34D399]">
-                      {slot.label}
-                    </p>
-                    <p className="mt-1 leading-relaxed text-zinc-200">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-[#34D399]">
+                        {slot.label}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPlanDays((prev) =>
+                            swapSlotInPlan(
+                              prev,
+                              day.day,
+                              slot.key,
+                              PLANNER_STORAGE_KEY,
+                            ),
+                          )
+                        }
+                        title={`Swap ${slot.label.toLowerCase()} option`}
+                        className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-[#141B16] px-2 py-0.5 text-[10px] font-semibold text-[#A3ADA6] transition hover:border-[#B6FF38]/50 hover:text-[#B6FF38]"
+                      >
+                        <ArrowLeftRight className="h-2.5 w-2.5" />
+                        <span>Swap</span>
+                      </button>
+                    </div>
+                    <p className="mt-1.5 leading-relaxed text-zinc-200">
                       {slot.text}
                     </p>
                   </div>
@@ -689,11 +867,11 @@ export function MealPlannerView({
               </div>
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-1.5 border-t border-white/[0.07] pt-3">
+            <div className="mt-4 flex flex-wrap gap-1.5 border-t border-white/[0.08] pt-3">
               {day.grocery_items.map((ing) => (
                 <span
                   key={ing}
-                  className="rounded-full border border-white/[0.08] bg-[#171717] px-2.5 py-0.5 text-[10px] text-[#A1A1AA]"
+                  className="rounded-full border border-white/10 bg-[#101713] px-2.5 py-0.5 text-[10px] text-[#A3ADA6]"
                 >
                   {ing}
                 </span>
