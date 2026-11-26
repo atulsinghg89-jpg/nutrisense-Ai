@@ -30,7 +30,8 @@ import type {
   DashboardSummary,
 } from "../types/nutrition";
 import { CircuitLines } from "./CircuitLines";
-import { EASE_PREMIUM } from "./MotionPrimitives";
+import { FloatingFoodIngredients } from "./FloatingFoodIngredients";
+import { EASE_PREMIUM, SplitText } from "./MotionPrimitives";
 
 interface FloatingFeatureLabel {
   id: string;
@@ -68,21 +69,21 @@ interface ScrollTimelineProps {
 const STORY_STEPS: StoryStep[] = [
   {
     number: "01",
-    eyebrow: "DISCOVER YOUR FOOD",
-    heading: "First, Understand What's On Your Plate.",
+    eyebrow: "AI FOOD INTELLIGENCE",
+    heading: "First, See Every Ingredient on Your Plate.",
     description:
-      "Simply upload your meal photo and let NutriSense AI identify Indian and everyday food items with estimated portions.",
-    greenInfo: "Gemini Vision • Multi-Item Plate Recognition",
-    ctaLabel: "Explore AI Scanner",
+      "Snap or upload any plate photo and watch NutriSense AI isolate individual items with realistic baseline gram servings.",
+    greenInfo: "Chapter 01 • Gemini Vision Multi-Item Recognition",
+    ctaLabel: "Launch AI Scanner",
     ctaView: "scanner",
     imageSrc: "/images/indian-hero-bowl.jpg",
-    imageAlt: "Indian healthy paneer, millet khichdi, sprouted moong, and avocado bowl",
-    auraGradient: "radial-gradient(circle at 60% 45%, rgba(182,255,56,0.14), transparent 65%)",
+    imageAlt: "Balanced nourish bowl with paneer, grains, greens, avocado, and herb dressing",
+    auraGradient: "radial-gradient(circle at 62% 45%, rgba(163,255,18,0.14), transparent 65%)",
     labels: [
       {
         id: "ai-scanner",
         label: "AI Food Scanner",
-        sublabel: "Upload or live camera",
+        sublabel: "Upload or live webcam",
         targetView: "scanner",
         icon: Camera,
         desktopPos: "top-5 left-2 xl:-left-5",
@@ -90,8 +91,8 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "food-recognition",
-        label: "Indian & Plate Recognition",
-        sublabel: "Multi-item breakdown",
+        label: "Plate Detection",
+        sublabel: "Indian & everyday dishes",
         targetView: "indian-foods",
         icon: ScanLine,
         desktopPos: "top-7 right-2 xl:-right-4",
@@ -99,17 +100,17 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "calorie-analysis",
-        label: "Calorie Analysis",
-        sublabel: "Live kcal estimation",
+        label: "Calorie Estimation",
+        sublabel: "Instant kcal breakdown",
         targetView: "dashboard",
         icon: Flame,
         desktopPos: "bottom-20 left-2 xl:-left-5",
         connectorSide: "right",
       },
       {
-        id: "protein-detection",
-        label: "Protein & Macros",
-        sublabel: "Gram-level breakdown",
+        id: "micronutrients",
+        label: "Macros & Vitamins",
+        sublabel: "Balanced nutrient profile",
         targetView: "scanner",
         icon: Sparkles,
         desktopPos: "bottom-6 right-2 xl:-right-4",
@@ -119,11 +120,11 @@ const STORY_STEPS: StoryStep[] = [
   },
   {
     number: "02",
-    eyebrow: "UNDERSTAND YOUR NUTRITION",
-    heading: "Know What Your Food Really Contains.",
+    eyebrow: "SMART NUTRITION ANALYSIS",
+    heading: "Decode Calories, Protein, Carbs & Vitamins.",
     description:
-      "Understand calories, protein, carbohydrates and fats with interactive gram sliders and per-100g normalization.",
-    greenInfo: "Per-100g Normalization • Live Portion Recalculation",
+      "Adjust every ingredient dynamically with gram sliders backed by per-100g normalization and live target progress bars.",
+    greenInfo: "Chapter 02 • Real-Time Gram Recalculation",
     ctaLabel: "Explore Nutrition Analysis",
     ctaView: "scanner",
     imageSrc: "/images/nutrition-analytics.jpg",
@@ -142,7 +143,7 @@ const STORY_STEPS: StoryStep[] = [
       {
         id: "macro-protein",
         label: "Protein",
-        sublabel: "Goal tracking",
+        sublabel: "Live goal tracking",
         targetView: "dashboard",
         icon: Activity,
         desktopPos: "top-7 right-2 xl:-right-4",
@@ -150,7 +151,7 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "macro-carbs",
-        label: "Indian Food Discovery",
+        label: "Indian Food Index",
         sublabel: "Roti, dal, idli macros",
         targetView: "indian-foods",
         icon: BarChart3,
@@ -159,8 +160,8 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "macro-fats",
-        label: "Fats & Fiber",
-        sublabel: "Balanced intake split",
+        label: "Fats & Vitamins",
+        sublabel: "Balanced energy split",
         targetView: "scanner",
         icon: Scale,
         desktopPos: "bottom-20 right-2 xl:-right-4",
@@ -169,7 +170,7 @@ const STORY_STEPS: StoryStep[] = [
       {
         id: "portion-control",
         label: "Portion Control",
-        sublabel: "Live gram sliders",
+        sublabel: "Interactive gram sliders",
         targetView: "scanner",
         icon: SlidersHorizontal,
         desktopPos: "bottom-5 left-2 xl:-left-4",
@@ -179,16 +180,16 @@ const STORY_STEPS: StoryStep[] = [
   },
   {
     number: "03",
-    eyebrow: "FIND BETTER ALTERNATIVES",
-    heading: "Small Food Swaps. Better Choices.",
+    eyebrow: "HEALTHIER FOOD ALTERNATIVES",
+    heading: "Small Swaps. Measurable Daily Gains.",
     description:
-      "Discover healthier alternatives and compare protein, carbs, fats, and calorie savings side by side.",
-    greenInfo: "3 Practical Swaps Per Scan • Food Comparator",
-    ctaLabel: "Explore Food Alternatives",
+      "Compare indulgent staples against protein-rich, lighter whole-food upgrades side by side without sacrificing flavor.",
+    greenInfo: "Chapter 03 • 3 Practical Swaps Per Scan & Comparator",
+    ctaLabel: "Compare Healthy Swaps",
     ctaView: "alternatives",
     imageSrc: "/images/healthy-swaps.jpg",
     imageAlt: "Oven-baked root vegetable crisps and herb popcorn healthier swaps",
-    auraGradient: "radial-gradient(circle at 60% 55%, rgba(182,255,56,0.13), transparent 65%)",
+    auraGradient: "radial-gradient(circle at 60% 55%, rgba(163,255,18,0.13), transparent 65%)",
     labels: [
       {
         id: "original-meal",
@@ -202,7 +203,7 @@ const STORY_STEPS: StoryStep[] = [
       {
         id: "healthier-alt",
         label: "Healthier Alternative",
-        sublabel: "Smart whole-food swap",
+        sublabel: "Whole-food upgrade",
         targetView: "alternatives",
         icon: Sparkles,
         desktopPos: "top-7 right-2 xl:-right-4",
@@ -210,7 +211,7 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "calorie-savings",
-        label: "Calorie & Macro Delta",
+        label: "Calorie & Protein Delta",
         sublabel: "Side-by-side compare",
         targetView: "alternatives",
         icon: TrendingDown,
@@ -219,7 +220,7 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "budget-swaps",
-        label: "Budget Protein Swaps",
+        label: "Budget Protein Plans",
         sublabel: "₹50–₹200/day nutrition",
         targetView: "budget",
         icon: BarChart3,
@@ -230,12 +231,12 @@ const STORY_STEPS: StoryStep[] = [
   },
   {
     number: "04",
-    eyebrow: "TRANSFORM YOUR HABITS",
-    heading: "Your Nutrition. Your Progress.",
+    eyebrow: "YOUR PERSONAL NUTRITION JOURNEY",
+    heading: "Track Habits. Plan Weeks. Transform Health.",
     description:
-      "Track daily meals in PostgreSQL, monitor weekly & monthly trends, plan Indian weekly menus, and stay consistent.",
-    greenInfo: "PostgreSQL Persistence • Weekly Insights & Planner",
-    ctaLabel: "Explore My Dashboard",
+      "Persist every meal in PostgreSQL, monitor 7-day and 30-day calorie & protein curves, and build customizable Indian weekly menus.",
+    greenInfo: "Chapter 04 • PostgreSQL Persistence & Weekly Planner",
+    ctaLabel: "Open My Dashboard",
     ctaView: "dashboard",
     imageSrc: "/images/dashboard-preview.jpg",
     imageAlt: "NutriSense AI personal dashboard tablet displaying glowing macro rings alongside healthy whole foods",
@@ -243,8 +244,8 @@ const STORY_STEPS: StoryStep[] = [
     labels: [
       {
         id: "daily-calories",
-        label: "Daily Progress",
-        sublabel: "Calorie & macro rings",
+        label: "Daily Macro Rings",
+        sublabel: "Real PostgreSQL intake",
         targetView: "dashboard",
         icon: Flame,
         desktopPos: "top-5 left-2 xl:-left-5",
@@ -252,8 +253,8 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "protein-progress",
-        label: "Weekly & Monthly Insights",
-        sublabel: "Real PostgreSQL trends",
+        label: "Weekly Trends",
+        sublabel: "Interactive 7d & 30d logs",
         targetView: "dashboard",
         icon: LayoutDashboard,
         desktopPos: "top-7 right-2 xl:-right-4",
@@ -261,8 +262,8 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "meal-history",
-        label: "Weekly Diet Planner",
-        sublabel: "7-day meal schedule",
+        label: "Interactive Meal Planner",
+        sublabel: "Swap meals per slot",
         targetView: "planner",
         icon: History,
         desktopPos: "bottom-20 left-2 xl:-left-5",
@@ -270,8 +271,8 @@ const STORY_STEPS: StoryStep[] = [
       },
       {
         id: "daily-goals",
-        label: "Nutrition Goals",
-        sublabel: "Edit targets anytime",
+        label: "Personal Targets",
+        sublabel: "Calorie & macro goals",
         targetView: "dashboard",
         actionHint: "goals",
         icon: Target,
@@ -305,6 +306,8 @@ export function ScrollTimeline({
   });
 
   const lineScaleY = useTransform(smoothProgress, [0, 1], [0.06, 1]);
+  const visualScale = useTransform(smoothProgress, [0, 0.35, 0.7, 1], [0.98, 1.03, 0.99, 1.02]);
+  const visualTilt = useTransform(smoothProgress, [0, 0.33, 0.66, 1], [-0.9, 0.8, -0.7, 0.4]);
 
   useMotionValueEvent(scrollYProgress, "change", (latest) => {
     const idx =
@@ -340,11 +343,12 @@ export function ScrollTimeline({
     <section
       id="storytelling"
       aria-label="Interactive Nutrition Journey"
-      className="relative rounded-[2.25rem] border border-white/10 bg-[#101713] transition-colors duration-700"
+      className="relative overflow-x-clip rounded-[2.25rem] border border-white/10 bg-[#0A0A0A] transition-colors duration-700"
       style={{ backgroundImage: activeStep.auraGradient }}
     >
-      {/* Subtle animated circuit lines behind the storytelling stage */}
-      <CircuitLines variant="section" className="rounded-[2.25rem] opacity-70" />
+      {/* Subtle animated circuit lines & floating botanical particles */}
+      <CircuitLines variant="section" className="rounded-[2.25rem] opacity-65" />
+      <FloatingFoodIngredients variant="story" scrollProgress={smoothProgress} />
 
       {/* Section Intro Banner */}
       <div className="relative z-10 border-b border-white/[0.08] px-6 py-8 sm:px-10 lg:px-14">
@@ -408,7 +412,11 @@ export function ScrollTimeline({
                   </div>
 
                   <h3 className="font-display text-4xl leading-[1.08] font-extrabold tracking-tight text-white xl:text-[2.75rem]">
-                    {activeStep.heading}
+                    <SplitText
+                      key={activeStep.number}
+                      text={activeStep.heading}
+                      delay={0.04}
+                    />
                   </h3>
 
                   <p className="max-w-lg text-base leading-relaxed text-[#A3ADA6]">
@@ -519,15 +527,22 @@ export function ScrollTimeline({
               </div>
             </div>
 
-            {/* RIGHT SIDE: Sticky Interactive Image + Floating Clickable Feature Labels */}
+            {/* RIGHT SIDE: Sticky Interactive Image with Scroll Scale/Tilt + Floating Labels */}
             <div className="col-span-6 pl-4">
               <div className="relative mx-auto max-w-[540px] py-4">
                 <div
                   aria-hidden="true"
-                  className="pointer-events-none absolute -inset-3 rounded-[2rem] bg-gradient-to-tr from-[#B6FF38]/15 via-transparent to-[#34D399]/15 blur-2xl"
+                  className="pointer-events-none absolute -inset-3 rounded-[2rem] bg-gradient-to-tr from-[#A3FF12]/15 via-transparent to-[#34D399]/15 blur-2xl"
                 />
 
-                <div className="relative overflow-hidden rounded-[1.75rem] border border-[#34D399]/35 bg-[#141B16] p-2.5 shadow-[0_24px_80px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.06]">
+                <motion.div
+                  style={
+                    prefersReduced
+                      ? undefined
+                      : { scale: visualScale, rotate: visualTilt }
+                  }
+                  className="relative overflow-hidden rounded-[1.75rem] border border-[#34D399]/35 bg-[#121212] p-2.5 shadow-[0_24px_80px_rgba(0,0,0,0.85)] ring-1 ring-white/[0.06]"
+                >
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={activeStep.imageSrc}
@@ -545,19 +560,19 @@ export function ScrollTimeline({
                       />
                       <div
                         aria-hidden="true"
-                        className="absolute inset-0 bg-gradient-to-t from-[#080B09]/85 via-[#080B09]/10 to-transparent"
+                        className="absolute inset-0 bg-gradient-to-t from-[#050706]/85 via-[#050706]/10 to-transparent"
                       />
                       <div className="absolute right-4 bottom-3 left-4 flex items-center justify-between text-xs text-zinc-300">
-                        <span className="font-mono text-[11px] uppercase tracking-wider text-[#34D399]">
-                          Chapter {activeStep.number} • Interactive Visual
+                        <span className="font-mono text-[11px] uppercase tracking-wider text-[#A3FF12]">
+                          {activeStep.eyebrow}
                         </span>
-                        <span className="text-[11px] text-[#A3ADA6]">
+                        <span className="text-[11px] text-[#A1A1AA]">
                           Click any floating label to open
                         </span>
                       </div>
                     </motion.div>
                   </AnimatePresence>
-                </div>
+                </motion.div>
 
                 {/* Floating Clickable Feature Labels Around the Image */}
                 <AnimatePresence mode="wait">

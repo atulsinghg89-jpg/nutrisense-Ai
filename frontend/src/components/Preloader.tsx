@@ -27,7 +27,7 @@ export function Preloader() {
     }
     const timer = window.setTimeout(() => {
       setVisible(false);
-    }, 950);
+    }, 520);
     return () => window.clearTimeout(timer);
   }, [visible]);
 
@@ -40,9 +40,9 @@ export function Preloader() {
           role="status"
           aria-label="Loading NutriSense AI"
           initial={{ opacity: 1 }}
-          exit={{ opacity: 0, scale: 1.02 }}
-          transition={{ duration: 0.42, ease: EASE_PREMIUM }}
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#080B09]"
+          exit={{ opacity: 0, scale: 1.03 }}
+          transition={{ duration: 0.36, ease: EASE_PREMIUM }}
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#050706]"
         >
           {/* Ambient Lime Energy Aura */}
           <div
@@ -77,7 +77,7 @@ export function Preloader() {
                   strokeDasharray={2 * Math.PI * 42}
                   initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
                   animate={{ strokeDashoffset: 0 }}
-                  transition={{ duration: 0.85, ease: EASE_PREMIUM }}
+                  transition={{ duration: 0.48, ease: EASE_PREMIUM }}
                 />
                 <defs>
                   <linearGradient
@@ -88,7 +88,7 @@ export function Preloader() {
                     y2="96"
                     gradientUnits="userSpaceOnUse"
                   >
-                    <stop stopColor="#B6FF38" />
+                    <stop stopColor="#A3FF12" />
                     <stop offset="1" stopColor="#34D399" />
                   </linearGradient>
                 </defs>

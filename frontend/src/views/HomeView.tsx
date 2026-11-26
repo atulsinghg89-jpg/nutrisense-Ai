@@ -1,5 +1,11 @@
-import { useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useRef, useState } from "react";
+import {
+  AnimatePresence,
+  motion,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+} from "framer-motion";
 import {
   Activity,
   ArrowRight,
@@ -23,6 +29,7 @@ import {
   X,
 } from "lucide-react";
 import { CircuitLines } from "../components/CircuitLines";
+import { FloatingFoodIngredients } from "../components/FloatingFoodIngredients";
 import { MacroProgressBars } from "../components/MacroProgressBars";
 import {
   AnimatedNumber,
@@ -129,6 +136,16 @@ export function HomeView({
   apiOnline,
 }: HomeViewProps) {
   const prefersReduced = useReducedMotion();
+  const heroRef = useRef<HTMLElement | null>(null);
+  const { scrollYProgress: heroScrollProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"],
+  });
+
+  const heroImageY = useTransform(heroScrollProgress, [0, 1], [0, 56]);
+  const heroImageScale = useTransform(heroScrollProgress, [0, 1], [1, 1.07]);
+  const heroImageRotate = useTransform(heroScrollProgress, [0, 1], [0, -1.5]);
+
   const [legalDialog, setLegalDialog] = useState<"privacy" | "terms" | null>(
     null,
   );
@@ -141,13 +158,29 @@ export function HomeView({
   );
 
   const hasScannedItems = Boolean(scanSession && scanSession.items.length > 0);
+  const liveProtein = hasScannedItems
+    ? scanSession!.totals.protein
+    : todaySummary.total_protein;
+  const liveCarbs = hasScannedItems
+    ? scanSession!.totals.carbs
+    : todaySummary.total_carbs;
+  const liveFats = hasScannedItems
+    ? scanSession!.totals.fats
+    : todaySummary.total_fats;
+  const liveCalories = hasScannedItems
+    ? scanSession!.totals.calories
+    : todaySummary.total_calories;
 
   return (
     <div className="space-y-20 pb-8">
-      {/* 1. Ultra-Premium Full-Screen Hero with Split-Text, Magnetic CTAs & Layered Indian Food Composition */}
-      <section className="relative overflow-hidden rounded-[2.25rem] border border-white/10 bg-[#080B09] px-6 py-12 sm:px-10 sm:py-16 lg:min-h-[84vh] lg:flex lg:flex-col lg:justify-center lg:px-14 lg:py-20">
-        {/* Animated Circuit Lines + Drifting Particles */}
+      {/* 1. Cinematic 7-Stage Hero Opening + Scroll-Linked Depth Parallax */}
+      <section
+        ref={heroRef}
+        className="relative overflow-hidden rounded-[2.25rem] border border-white/10 bg-[#050706] px-6 py-12 sm:px-10 sm:py-16 lg:flex lg:min-h-[88vh] lg:flex-col lg:justify-center lg:px-14 lg:py-20"
+      >
+        {/* Animated Circuit Lines + 3D Floating Food Ingredients */}
         <CircuitLines variant="hero" />
+        <FloatingFoodIngredients variant="hero" scrollProgress={heroScrollProgress} />
 
         {/* Subtle organic gradient aura lighting */}
         <motion.div
@@ -158,7 +191,7 @@ export function HomeView({
               : { scale: [1, 1.08, 1], y: [0, -16, 0], opacity: [0.15, 0.25, 0.15] }
           }
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="pointer-events-none absolute -top-28 -right-20 h-[440px] w-[440px] rounded-full bg-[#B6FF38] blur-[150px]"
+          className="pointer-events-none absolute -top-28 -right-20 h-[440px] w-[440px] rounded-full bg-[#A3FF12] blur-[150px]"
         />
         <motion.div
           aria-hidden="true"
@@ -172,40 +205,59 @@ export function HomeView({
         />
 
         <div className="relative z-10 grid w-full items-center gap-12 lg:grid-cols-12">
-          {/* Left Typography & Magnetic CTAs */}
-          <motion.div
-            initial={prefersReduced ? false : "hidden"}
-            animate="visible"
-            variants={staggerContainerVariants}
-            className="space-y-7 lg:col-span-6"
-          >
+          {/* Left Opening Sequence: Stage 1 (Logo) -> Stage 2 (Headline) -> Stage 5 (CTAs) */}
+          <div className="space-y-7 lg:col-span-6">
+            {/* Stage 1: Premium Logo Reveal Badge */}
             <motion.div
-              variants={staggerItemVariants}
-              className="inline-flex items-center gap-2 rounded-full border border-[#34D399]/35 bg-[#34D399]/10 px-3.5 py-1.5 text-xs font-semibold tracking-wide text-[#34D399]"
+              initial={prefersReduced ? false : { opacity: 0, y: -10, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.42, delay: 0.02, ease: EASE_PREMIUM }}
+              className="inline-flex items-center gap-2.5 rounded-full border border-[#A3FF12]/35 bg-[#121212]/90 px-3.5 py-1.5 text-xs font-semibold tracking-wide text-white shadow-[0_0_24px_rgba(163,255,18,0.12)]"
             >
-              <Sparkles className="h-3.5 w-3.5" />
-              <span>AI-Powered Indian Nutrition Intelligence</span>
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#A3FF12]/15">
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" aria-hidden="true">
+                  <path
+                    d="M19 4C11.5 4 6.5 8.5 5 15.5C8.8 14.8 12.2 12.7 14.5 9.8C13.2 13.5 9.8 16.5 5.2 17.8C6.6 19.3 8.8 20 11.4 20C16.8 20 20 15.4 20 9.6C20 7.6 19.6 5.7 19 4Z"
+                    fill="#A3FF12"
+                  />
+                </svg>
+              </span>
+              <span className="text-[#A3FF12]">NutriSense AI</span>
+              <span className="text-zinc-500">•</span>
+              <span className="text-[#34D399]">AI Nutrition Intelligence</span>
             </motion.div>
 
-            <h1 className="font-display text-4xl leading-[1.03] font-extrabold tracking-tight text-white sm:text-5xl lg:text-[4rem]">
-              <SplitText text="Your Food." delay={0.04} className="block" />
-              <SplitText text="Your Health." delay={0.14} className="block" />
-              <span className="mt-1 inline-block text-glow-lime bg-gradient-to-r from-[#B6FF38] via-[#86efac] to-[#34D399] bg-clip-text text-transparent">
-                <SplitText text="Your Intelligence." delay={0.24} mode="chars" />
+            {/* Stage 2: Line-by-Line Hero Headline Reveal */}
+            <h1 className="font-display text-4xl leading-[1.02] font-extrabold tracking-tight text-white uppercase sm:text-5xl lg:text-[3.65rem]">
+              <SplitText
+                text="UNDERSTAND YOUR FOOD."
+                delay={0.12}
+                className="block"
+              />
+              <span className="mt-1.5 inline-block text-glow-lime bg-gradient-to-r from-[#A3FF12] via-[#86efac] to-[#34D399] bg-clip-text text-transparent">
+                <SplitText
+                  text="TRANSFORM YOUR HEALTH."
+                  delay={0.26}
+                  mode="words"
+                />
               </span>
             </h1>
 
             <motion.p
-              variants={staggerItemVariants}
-              className="max-w-xl text-base leading-relaxed text-[#A3ADA6] sm:text-lg"
+              initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.38, ease: EASE_PREMIUM }}
+              className="max-w-xl text-base leading-relaxed text-[#A1A1AA] sm:text-lg"
             >
-              Discover what&apos;s on your plate, understand your nutrition and
-              make smarter food choices with AI.
+              Discover what&apos;s on your plate. Understand your nutrition.
+              Build a healthier lifestyle with AI.
             </motion.p>
 
-            {/* Primary Magnetic & Secondary CTAs */}
+            {/* Stage 5: Primary Magnetic & Secondary CTAs */}
             <motion.div
-              variants={staggerItemVariants}
+              initial={prefersReduced ? false : { opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.48, delay: 0.54, ease: EASE_PREMIUM }}
               className="flex flex-wrap items-center gap-3.5 pt-1"
             >
               <MagneticButton
@@ -214,7 +266,7 @@ export function HomeView({
                     .getElementById("storytelling")
                     ?.scrollIntoView({ behavior: "smooth" });
                 }}
-                className="inline-flex items-center gap-2.5 rounded-full bg-[#B6FF38] px-6 py-3.5 text-sm font-bold text-[#080B09] shadow-[0_0_32px_rgba(182,255,56,0.32)] transition hover:bg-[#c8ff66] focus:ring-2 focus:ring-[#B6FF38] focus:ring-offset-2 focus:ring-offset-[#080B09] focus:outline-none"
+                className="inline-flex items-center gap-2.5 rounded-full bg-[#A3FF12] px-6 py-3.5 text-sm font-bold text-[#050706] shadow-[0_0_32px_rgba(163,255,18,0.32)] transition hover:bg-[#b8ff42] focus:ring-2 focus:ring-[#A3FF12] focus:ring-offset-2 focus:ring-offset-[#050706] focus:outline-none"
               >
                 <Sparkles className="h-4 w-4" />
                 <span>Explore NutriSense</span>
@@ -232,7 +284,7 @@ export function HomeView({
               <button
                 type="button"
                 onClick={onOpenOnboarding}
-                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-4 py-3.5 text-sm font-semibold text-white transition hover:border-[#B6FF38]/50 hover:bg-white/[0.08]"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-4 py-3.5 text-sm font-semibold text-white transition hover:border-[#A3FF12]/50 hover:bg-white/[0.08]"
               >
                 <span>
                   {profileName ? `Profile: ${profileName}` : "Start Journey"}
@@ -243,7 +295,7 @@ export function HomeView({
                 <button
                   type="button"
                   onClick={() => onNavigate("alternatives")}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#141B16] px-4 py-3 text-sm font-medium text-zinc-200 transition hover:border-[#34D399]/50"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-[#121212] px-4 py-3 text-sm font-medium text-zinc-200 transition hover:border-[#34D399]/50"
                 >
                   <span>Latest 3 Swaps</span>
                 </button>
@@ -252,7 +304,9 @@ export function HomeView({
 
             {/* Real Capabilities Strip */}
             <motion.div
-              variants={staggerItemVariants}
+              initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.45, delay: 0.64, ease: EASE_PREMIUM }}
               className="grid grid-cols-3 gap-3 border-t border-white/[0.08] pt-6"
             >
               <div>
@@ -280,25 +334,61 @@ export function HomeView({
                 </p>
               </div>
             </motion.div>
-          </motion.div>
+          </div>
 
-          {/* Right Visual Storytelling Frame with Real Food Photo & Floating Cards */}
+          {/* Right Stage 3 & 4: Cinematic Layered Food Composition + Floating Nutrition Indicators */}
           <motion.div
-            initial={prefersReduced ? false : { opacity: 0, scale: 0.97, y: 16 }}
+            initial={prefersReduced ? false : { opacity: 0, scale: 0.91, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1, ease: EASE_PREMIUM }}
+            transition={{ duration: 0.65, delay: 0.24, ease: EASE_PREMIUM }}
+            style={
+              prefersReduced
+                ? undefined
+                : {
+                    y: heroImageY,
+                    scale: heroImageScale,
+                    rotate: heroImageRotate,
+                  }
+            }
             className="relative lg:col-span-6"
           >
-            <div className="relative overflow-hidden rounded-3xl border border-white/[0.1] bg-[#0A0A0A] p-3 shadow-[0_24px_80px_rgba(0,0,0,0.8)]">
+            {/* Secondary Real Food Plate Vignettes for 3D Culinary Depth */}
+            <motion.div
+              initial={prefersReduced ? false : { opacity: 0, scale: 0.8, x: -12 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              transition={{ duration: 0.55, delay: 0.45, ease: EASE_PREMIUM }}
+              className="animate-float-3d-slow absolute -top-5 -left-4 z-20 hidden h-20 w-20 overflow-hidden rounded-2xl border-2 border-[#34D399]/50 bg-[#0A0A0A] shadow-[0_14px_30px_rgba(0,0,0,0.8)] sm:block"
+            >
+              <img
+                src="/images/south-indian-breakfast.jpg"
+                alt="Idli and sambar dish depth vignette"
+                className="h-full w-full object-cover"
+              />
+            </motion.div>
+
+            <motion.div
+              initial={prefersReduced ? false : { opacity: 0, scale: 0.8, x: 12 }}
+              animate={{ opacity: 1, scale: 1, x: 0 }}
+              transition={{ duration: 0.55, delay: 0.5, ease: EASE_PREMIUM }}
+              className="animate-float-3d-reverse absolute -right-3 -bottom-5 z-20 hidden h-20 w-20 overflow-hidden rounded-2xl border-2 border-[#A3FF12]/50 bg-[#0A0A0A] shadow-[0_14px_30px_rgba(0,0,0,0.8)] sm:block"
+            >
+              <img
+                src="/images/north-indian-thali.jpg"
+                alt="High-protein dal and roti meal depth vignette"
+                className="h-full w-full object-cover"
+              />
+            </motion.div>
+
+            <div className="relative overflow-hidden rounded-3xl border border-white/[0.12] bg-[#0A0A0A] p-3 shadow-[0_28px_90px_rgba(0,0,0,0.85)]">
               <div className="group relative overflow-hidden rounded-2xl">
                 <img
                   src="/images/indian-hero-bowl.jpg"
-                  alt="Balanced Indian nourish bowl with grilled paneer, millet khichdi, sprouted moong salad, avocado, and mint chutney"
+                  alt="Balanced nourish bowl with grilled paneer, grains, sprouted moong salad, avocado, and mint dressing"
                   className="aspect-[4/3] w-full object-cover transition duration-700 group-hover:scale-[1.03]"
                 />
                 <div
                   aria-hidden="true"
-                  className="absolute inset-0 bg-gradient-to-t from-[#0A0A0A] via-[#0A0A0A]/20 to-transparent"
+                  className="absolute inset-0 bg-gradient-to-t from-[#050706] via-[#050706]/25 to-transparent"
                 />
 
                 {/* Subtle AI Vision Reticle Corners */}
@@ -312,15 +402,19 @@ export function HomeView({
                   <span className="absolute right-0 bottom-0 h-5 w-5 rounded-br-lg border-r-2 border-b-2 border-[#34D399]/80" />
                 </div>
 
-                {/* Floating Top-Left Live Status Pill */}
+                {/* Floating Indicator 1 (Top-Left): Scanner Status */}
                 <motion.button
                   type="button"
                   onClick={() => onNavigate("scanner")}
-                  animate={prefersReduced ? undefined : { y: [0, -4, 0] }}
+                  initial={prefersReduced ? false : { opacity: 0, y: -8 }}
+                  animate={
+                    prefersReduced
+                      ? { opacity: 1 }
+                      : { opacity: 1, y: [0, -4, 0] }
+                  }
                   transition={{
-                    duration: 4.5,
-                    repeat: Infinity,
-                    ease: "easeInOut",
+                    opacity: { duration: 0.4, delay: 0.42 },
+                    y: { duration: 4.5, repeat: Infinity, ease: "easeInOut" },
                   }}
                   className="glass-surface absolute top-5 left-5 flex items-center gap-2 rounded-full border border-white/15 px-3 py-1.5 text-xs font-medium text-white shadow-lg transition hover:border-[#A3FF12]/60"
                 >
@@ -335,50 +429,73 @@ export function HomeView({
                   />
                   <span>
                     {hasScannedItems
-                      ? `Latest Scan: ${scanSession!.items.length} items`
-                      : "Gemini Vision Scanner Ready"}
+                      ? `Scanned: ${scanSession!.items.length} items`
+                      : "Gemini Vision Active"}
                   </span>
                 </motion.button>
 
-                {/* Floating Top-Right Target Card */}
+                {/* Floating Indicator 2 (Top-Right): Live Calories Pill */}
                 <motion.button
                   type="button"
                   onClick={() =>
                     onNavigate(hasScannedItems ? "scanner" : "dashboard")
                   }
-                  animate={prefersReduced ? undefined : { y: [0, 5, 0] }}
+                  initial={prefersReduced ? false : { opacity: 0, y: -10 }}
+                  animate={
+                    prefersReduced
+                      ? { opacity: 1 }
+                      : { opacity: 1, y: [0, 5, 0] }
+                  }
                   transition={{
-                    duration: 5,
-                    repeat: Infinity,
-                    ease: "easeInOut",
+                    opacity: { duration: 0.4, delay: 0.48 },
+                    y: { duration: 5, repeat: Infinity, ease: "easeInOut" },
                   }}
-                  className="glass-surface absolute top-5 right-5 rounded-2xl border border-[#A3FF12]/30 px-3.5 py-2 text-right shadow-lg transition hover:border-[#A3FF12]"
+                  className="glass-surface absolute top-5 right-5 rounded-2xl border border-[#A3FF12]/35 px-3.5 py-2 text-right shadow-lg transition hover:border-[#A3FF12]"
                 >
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-[#A1A1AA]">
-                    {hasScannedItems ? "Scanned Meal" : "Today Logged"}
+                    {hasScannedItems ? "Calories Est." : "Today Calories"}
                   </p>
                   <p className="font-mono text-base font-bold text-[#A3FF12] tabular-nums">
-                    <AnimatedNumber
-                      value={
-                        hasScannedItems
-                          ? scanSession!.totals.calories
-                          : todaySummary.total_calories
-                      }
-                    />{" "}
+                    <AnimatedNumber value={liveCalories} />{" "}
                     <span className="text-xs font-normal text-zinc-300">
                       kcal
                     </span>
                   </p>
                 </motion.button>
 
-                {/* Bottom Overlay Macro Strip (real state!) */}
-                <div className="absolute inset-x-3 bottom-3 rounded-2xl border border-white/10 bg-[#0A0A0A]/88 p-3.5 backdrop-blur-md">
+                {/* Floating Indicator 3 (Mid-Right): Vitamins & Antioxidants Badge */}
+                <motion.button
+                  type="button"
+                  onClick={() => onNavigate("categories")}
+                  initial={prefersReduced ? false : { opacity: 0, x: 10 }}
+                  animate={
+                    prefersReduced
+                      ? { opacity: 1 }
+                      : { opacity: 1, x: [0, -4, 0] }
+                  }
+                  transition={{
+                    opacity: { duration: 0.4, delay: 0.56 },
+                    x: { duration: 5.4, repeat: Infinity, ease: "easeInOut" },
+                  }}
+                  className="glass-surface absolute top-[46%] right-4 hidden items-center gap-2 rounded-full border border-[#34D399]/35 px-3 py-1.5 text-[11px] font-semibold text-white shadow-lg transition hover:border-[#34D399] sm:flex"
+                >
+                  <ShieldCheck className="h-3.5 w-3.5 text-[#34D399]" />
+                  <span>Vitamins &amp; Fiber Balance</span>
+                </motion.button>
+
+                {/* Bottom Overlay Macro Indicators Strip (Protein, Carbs, Fats - real state) */}
+                <motion.div
+                  initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.45, delay: 0.52, ease: EASE_PREMIUM }}
+                  className="absolute inset-x-3 bottom-3 rounded-2xl border border-white/10 bg-[#050706]/90 p-3.5 backdrop-blur-md"
+                >
                   <div className="flex items-center justify-between gap-2 pb-2.5">
                     <div>
                       <p className="text-[11px] font-semibold uppercase tracking-wider text-[#34D399]">
                         {hasScannedItems
-                          ? "Your Latest Scanned Plate"
-                          : "Your Daily Nutrition Status"}
+                          ? "Active Plate Breakdown"
+                          : "Live Daily Nutrition"}
                       </p>
                       <p className="text-xs text-[#A1A1AA]">
                         {hasScannedItems
@@ -387,10 +504,10 @@ export function HomeView({
                               .map((i) => i.name)
                               .join(" • ")
                           : todaySummaryLoading
-                            ? "Syncing today's logged meals..."
+                            ? "Syncing PostgreSQL meal logs..."
                             : `${todaySummary.total_meals} ${
                                 todaySummary.total_meals === 1 ? "meal" : "meals"
-                              } logged today against ${dailyTargets.calories.toLocaleString()} kcal goal`}
+                              } logged today against ${dailyTargets.calories.toLocaleString()} kcal target`}
                       </p>
                     </div>
                     <button
@@ -404,30 +521,24 @@ export function HomeView({
                     </button>
                   </div>
 
-                  {/* Animated Macro Bars reflecting actual state */}
+                  {/* Animated Protein, Carbs & Fats Indicator Bars */}
                   <div className="grid grid-cols-3 gap-2.5 border-t border-white/[0.08] pt-2.5">
                     {[
                       {
                         label: "Protein",
-                        value: hasScannedItems
-                          ? scanSession!.totals.protein
-                          : todaySummary.total_protein,
+                        value: liveProtein,
                         target: dailyTargets.protein,
                         color: "bg-[#34D399]",
                       },
                       {
                         label: "Carbs",
-                        value: hasScannedItems
-                          ? scanSession!.totals.carbs
-                          : todaySummary.total_carbs,
+                        value: liveCarbs,
                         target: dailyTargets.carbs,
                         color: "bg-emerald-300",
                       },
                       {
-                        label: "Fats",
-                        value: hasScannedItems
-                          ? scanSession!.totals.fats
-                          : todaySummary.total_fats,
+                        label: "Fats & Vit",
+                        value: liveFats,
                         target: dailyTargets.fats,
                         color: "bg-[#A3FF12]",
                       },
@@ -452,6 +563,7 @@ export function HomeView({
                               animate={{ width: `${pct}%` }}
                               transition={{
                                 duration: 0.7,
+                                delay: 0.58,
                                 ease: EASE_PREMIUM,
                               }}
                               className={`h-full rounded-full ${macro.color}`}
@@ -461,13 +573,13 @@ export function HomeView({
                       );
                     })}
                   </div>
-                </div>
+                </motion.div>
               </div>
             </div>
           </motion.div>
         </div>
 
-        {/* Subtle Hero Scroll Indicator */}
+        {/* Stage 6: Cinematic Scroll Indicator */}
         <motion.button
           type="button"
           onClick={() => {
@@ -475,10 +587,21 @@ export function HomeView({
               .getElementById("storytelling")
               ?.scrollIntoView({ behavior: "smooth" });
           }}
-          animate={prefersReduced ? undefined : { y: [0, 5, 0] }}
-          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-          className="relative z-10 mx-auto mt-10 hidden items-center gap-2 rounded-full border border-white/10 bg-[#0A0A0A]/80 px-4 py-1.5 text-[11px] font-medium text-[#A1A1AA] transition hover:border-[#A3FF12]/40 hover:text-white lg:inline-flex"
+          initial={prefersReduced ? false : { opacity: 0, y: 10 }}
+          animate={
+            prefersReduced
+              ? { opacity: 1 }
+              : { opacity: 1, y: [0, 5, 0] }
+          }
+          transition={{
+            opacity: { duration: 0.45, delay: 0.72 },
+            y: { duration: 2.2, repeat: Infinity, ease: "easeInOut" },
+          }}
+          className="relative z-10 mx-auto mt-10 flex items-center gap-2.5 rounded-full border border-white/15 bg-[#0A0A0A]/90 px-4 py-1.5 text-[11px] font-medium text-[#A1A1AA] transition hover:border-[#A3FF12]/50 hover:text-white"
         >
+          <span className="flex h-4 w-2.5 items-start justify-center rounded-full border border-[#A3FF12]/60 p-0.5">
+            <span className="h-1.5 w-1 rounded-full bg-[#A3FF12]" />
+          </span>
           <span>Scroll to explore story</span>
           <span className="text-[#A3FF12]">↓</span>
         </motion.button>
@@ -770,19 +893,19 @@ export function HomeView({
         </section>
       </RevealSection>
 
-      {/* 5. How It Works (01 — SCAN, 02 — ANALYZE, 03 — IMPROVE) */}
+      {/* 5. Editorial Light Contrast Section — How NutriSense AI Works (01 — SCAN, 02 — ANALYZE, 03 — IMPROVE) */}
       <RevealSection>
-        <section className="space-y-8">
-          <div className="flex flex-wrap items-end justify-between gap-4">
+        <section className="relative overflow-hidden rounded-[2.25rem] border border-black/10 bg-[#F4F7F2] px-6 py-10 text-[#0A0A0A] shadow-[0_24px_70px_rgba(0,0,0,0.35)] sm:px-10 sm:py-12">
+          <div className="flex flex-wrap items-end justify-between gap-4 border-b border-black/10 pb-6">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-[#34D399]">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#0A0A0A] px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-[#A3FF12]">
                 Three-Step Workflow
-              </p>
-              <h2 className="mt-1.5 font-display text-3xl font-bold tracking-tight text-white">
+              </span>
+              <h2 className="mt-2.5 font-display text-3xl font-extrabold tracking-tight text-[#050706] sm:text-4xl">
                 How NutriSense AI Works
               </h2>
             </div>
-            <p className="max-w-md text-sm text-[#A1A1AA]">
+            <p className="max-w-md text-sm leading-relaxed text-zinc-700">
               Built for fast everyday nutrition decisions without tedious manual
               spreadsheet entry.
             </p>
@@ -793,57 +916,44 @@ export function HomeView({
             initial="hidden"
             whileInView="visible"
             viewport={{ once: true, amount: 0.15 }}
-            className="relative grid gap-6 md:grid-cols-3"
+            className="relative mt-8 grid gap-6 md:grid-cols-3"
           >
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute top-14 right-16 left-16 hidden h-px bg-gradient-to-r from-[#A3FF12]/40 via-[#34D399]/50 to-[#A3FF12]/40 md:block"
+              className="pointer-events-none absolute top-14 right-16 left-16 hidden h-px bg-gradient-to-r from-[#0A0A0A]/25 via-[#059669]/45 to-[#0A0A0A]/25 md:block"
             />
 
             {WORKFLOW_STEPS.map((item) => {
               const Icon = item.icon;
-              const isLime = item.accent === "lime";
               return (
                 <motion.button
                   key={item.step}
                   type="button"
                   variants={staggerItemVariants}
-                  whileHover={{ y: -4 }}
+                  whileHover={{ y: -5 }}
                   whileTap={{ scale: 0.99 }}
                   onClick={() => onNavigate(item.view)}
-                  className="group relative flex flex-col justify-between rounded-2xl border border-white/[0.08] bg-[#121212] p-6 text-left transition-colors hover:border-white/20 hover:bg-[#171717]"
+                  className="group relative flex flex-col justify-between rounded-2xl border border-black/10 bg-white p-6 text-left shadow-[0_8px_28px_rgba(10,10,10,0.06)] transition-all hover:border-[#0A0A0A] hover:shadow-[0_18px_40px_rgba(10,10,10,0.12)]"
                 >
                   <div>
                     <div className="flex items-center justify-between">
-                      <div
-                        className={`relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl border transition-transform duration-300 group-hover:scale-105 ${
-                          isLime
-                            ? "border-[#A3FF12]/35 bg-[#A3FF12]/10 text-[#A3FF12]"
-                            : "border-[#34D399]/35 bg-[#34D399]/10 text-[#34D399]"
-                        }`}
-                      >
+                      <div className="relative z-10 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0A0A0A] text-[#A3FF12] transition-transform duration-300 group-hover:scale-105">
                         <Icon className="h-5 w-5" />
                       </div>
-                      <span
-                        className={`rounded-full border px-3 py-1 font-mono text-xs font-bold ${
-                          isLime
-                            ? "border-[#A3FF12]/30 bg-[#A3FF12]/10 text-[#A3FF12]"
-                            : "border-[#34D399]/30 bg-[#34D399]/10 text-[#34D399]"
-                        }`}
-                      >
+                      <span className="rounded-full border border-black/15 bg-[#F4F7F2] px-3 py-1 font-mono text-xs font-bold text-[#0A0A0A]">
                         {item.step} — {item.tag}
                       </span>
                     </div>
 
-                    <h3 className="mt-6 font-display text-lg font-bold text-white transition-colors group-hover:text-[#A3FF12]">
+                    <h3 className="mt-6 font-display text-lg font-extrabold text-[#050706] transition-colors group-hover:text-emerald-700">
                       {item.title}
                     </h3>
-                    <p className="mt-2.5 text-sm leading-relaxed text-[#A1A1AA]">
+                    <p className="mt-2.5 text-sm leading-relaxed text-zinc-600">
                       {item.description}
                     </p>
                   </div>
 
-                  <span className="mt-6 inline-flex items-center gap-1.5 text-xs font-semibold text-white/80 group-hover:text-[#A3FF12]">
+                  <span className="mt-6 inline-flex items-center gap-1.5 text-xs font-bold text-[#050706] group-hover:text-emerald-700">
                     <span>Open {item.tag === "IMPROVE" ? "Swaps" : "Scanner"}</span>
                     <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-1" />
                   </span>

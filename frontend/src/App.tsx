@@ -280,11 +280,11 @@ export function App() {
   return (
     <MotionConfig reducedMotion="user">
       <Preloader />
-      <div className="relative min-h-screen bg-[#080B09] text-white">
+      <div className="relative min-h-screen bg-[#050706] text-white">
         {/* Subtle top ambient light */}
         <div
           aria-hidden="true"
-          className="pointer-events-none fixed inset-x-0 top-0 h-[420px] bg-[radial-gradient(ellipse_at_top,rgba(182,255,56,0.06),transparent_65%)]"
+          className="pointer-events-none fixed inset-x-0 top-0 h-[420px] bg-[radial-gradient(ellipse_at_top,rgba(163,255,18,0.06),transparent_65%)]"
         />
 
         <Navbar

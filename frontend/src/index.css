@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  --color-obsidian: #080b09;
-  --color-secondary-surface: #101713;
-  --color-surface: #141b16;
-  --color-surface-elevated: #19221c;
-  --color-lime-accent: #b6ff38;
+  --color-obsidian: #050706;
+  --color-secondary-surface: #0a0a0a;
+  --color-surface: #121212;
+  --color-surface-elevated: #171d18;
+  --color-lime-accent: #a3ff12;
   --color-mint-accent: #34d399;
-  --color-muted-text: #a3ada6;
+  --color-muted-text: #a1a1aa;
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Manrope", "Space Grotesk", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-grotesk: "Space Grotesk", "Manrope", ui-sans-serif, sans-serif;
@@ -16,14 +16,14 @@
 
 @layer base {
   html {
-    background-color: #080b09;
+    background-color: #050706;
     color: #ffffff;
     font-family: var(--font-sans);
     scroll-behavior: smooth;
   }
 
   body {
-    background-color: #080b09;
+    background-color: #050706;
     color: #ffffff;
     min-height: 100vh;
     overflow-x: clip;
@@ -70,6 +70,37 @@
   animation: scanBeam 2.1s ease-in-out infinite alternate;
 }
 
+/* 3D depth floating animations for botanical & nutrient visuals */
+@keyframes float3dSlow {
+  0%,
+  100% {
+    transform: translate3d(0px, 0px, 0px) rotate(-4deg);
+  }
+  50% {
+    transform: translate3d(5px, -14px, 12px) rotate(6deg);
+  }
+}
+
+@keyframes float3dReverse {
+  0%,
+  100% {
+    transform: translate3d(0px, 0px, 0px) rotate(5deg);
+  }
+  50% {
+    transform: translate3d(-6px, 12px, 10px) rotate(-6deg);
+  }
+}
+
+.animate-float-3d-slow {
+  animation: float3dSlow 6.8s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-float-3d-reverse {
+  animation: float3dReverse 7.6s ease-in-out infinite;
+  will-change: transform;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -77,6 +108,10 @@
   .animate-scan-beam {
     animation: none;
     top: 50%;
+  }
+  .animate-float-3d-slow,
+  .animate-float-3d-reverse {
+    animation: none;
   }
 }
 
