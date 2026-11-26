@@ -6,42 +6,46 @@ import {
   type ChangeEvent,
   type DragEvent,
 } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertCircle,
   ArrowRight,
   Camera,
-  Check,
+  CheckCircle2,
   ImagePlus,
   Loader2,
-  RotateCcw,
-  Save,
   ScanLine,
   Sparkles,
   Upload,
   Video,
   X,
 } from "lucide-react";
-import { MacroProgressBars } from "../components/MacroProgressBars";
-import { AnimatedNumber, EASE_PREMIUM } from "../components/MotionPrimitives";
+import { EASE_PREMIUM } from "../components/MotionPrimitives";
+import { ScanExperienceStory } from "../components/ScanExperienceStory";
 import {
   computeTotals,
   createMealLog,
   recalculateMacros,
+  round2,
+  scaleIngredientFromGrams,
   scaleItemFromPortion,
   scanFoodImage,
+  validateFoodImageFile,
 } from "../lib/api";
 import type {
+  AnalyzedIngredient,
   AppView,
   DailyMacroTargets,
   EditableFoodItem,
   MealType,
+  ScanResponse,
   ScanSession,
 } from "../types/nutrition";
 
 interface ScannerViewProps {
   scanSession: ScanSession | null;
   onScanComplete: (session: ScanSession) => void;
+  onUpdateSession: (session: ScanSession) => void;
   onUpdateItems: (items: EditableFoodItem[], totals: ScanSession["totals"]) => void;
   dailyTargets: DailyMacroTargets;
   onNavigate: (view: AppView) => void;
@@ -49,6 +53,7 @@ interface ScannerViewProps {
 }
 
 const SCAN_HISTORY_STORAGE_KEY = "nutrisense_scan_history_v1";
+const ACCEPTED_MIME_TYPES = "image/jpeg,image/png,image/webp";
 
 interface CompactScanHistory {
   id: string;
@@ -70,27 +75,199 @@ function loadScanHistory(): CompactScanHistory[] {
   }
 }
 
-const ACCEPTED_MIME_TYPES =
-  "image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,image/*";
+/** Creates a compact JPEG thumbnail (<= 960px, ~40-100KB) for smooth preview & session persistence. */
+async function createCompactPreviewUrl(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const rawDataUrl = typeof reader.result === "string" ? reader.result : "";
+      if (!rawDataUrl) {
+        resolve("");
+        return;
+      }
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 960;
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height, 1));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(rawDataUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        try {
+          resolve(canvas.toDataURL("image/jpeg", 0.82));
+        } catch {
+          resolve(rawDataUrl);
+        }
+      };
+      img.onerror = () => resolve(rawDataUrl);
+      img.src = rawDataUrl;
+    };
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(file);
+  });
+}
 
-const MEAL_TYPE_OPTIONS: { value: MealType; label: string }[] = [
-  { value: "breakfast", label: "Breakfast" },
-  { value: "lunch", label: "Lunch" },
-  { value: "dinner", label: "Dinner" },
-  { value: "snack", label: "Snack" },
-];
+function buildSessionFromScanResponse(
+  result: ScanResponse,
+  previewUrl: string | null,
+  fileName: string | null,
+): ScanSession {
+  const editableItems: EditableFoodItem[] = result.items.map((item, idx) => ({
+    ...item,
+    id: `ing-${idx + 1}`,
+    initial_portion_grams: item.portion_grams,
+  }));
+
+  const ingredients: AnalyzedIngredient[] = result.ingredients ?? [];
+  const initialIngredientGrams: Record<string, number> = {};
+  for (const ing of ingredients) {
+    initialIngredientGrams[ing.id] = ing.estimated_grams;
+  }
+
+  return {
+    imagePreviewUrl: previewUrl,
+    fileName,
+    foodName:
+      result.food_name ||
+      editableItems
+        .slice(0, 2)
+        .map((i) => i.name)
+        .join(" & ") ||
+      "Scanned Meal",
+    foodDescription:
+      result.food_description ||
+      "Identified visible dishes and ingredients with ICMR–NIN and USDA database macros.",
+    estimatedPortion: result.estimated_portion ?? {
+      amount: result.totals.portion_grams,
+      unit: "g",
+      label: `~${Math.round(result.totals.portion_grams)} g estimated serving`,
+    },
+    portionConfidence: result.portion_confidence ?? "medium",
+    confidence: result.confidence ?? "medium",
+    ingredients,
+    initialIngredientGrams,
+    fibre: result.fibre ?? 0,
+    sugar: result.sugar ?? 0,
+    sodiumMg: result.sodium?.amount ?? 0,
+    otherNutrients: result.other_available_nutrients ?? [],
+    dataSources: result.data_sources ?? [
+      "Google Gemini Vision",
+      "ICMR–NIN IFCT 2017",
+      "USDA FoodData Central",
+    ],
+    analysisLimitations: result.analysis_limitations ?? [
+      "Portion weights are visual estimates from a single 2D photo.",
+    ],
+    modelUsed: result.model_used,
+    items: editableItems,
+    totals: result.totals,
+    alternatives: result.healthier_alternatives,
+    scannedAt: new Date().toISOString(),
+  };
+}
+
+function recomputeSessionFromIngredients(
+  prev: ScanSession,
+  nextIngredients: AnalyzedIngredient[],
+): ScanSession {
+  let fibre = 0;
+  let sugar = 0;
+  let sodiumMg = 0;
+  let calcium = 0;
+  let iron = 0;
+  let vitC = 0;
+  let potassium = 0;
+
+  const syncedItems: EditableFoodItem[] = nextIngredients.map((ing, idx) => {
+    fibre += ing.fibre;
+    sugar += ing.sugar;
+    sodiumMg += ing.sodium_mg;
+    calcium += ing.calcium_mg;
+    iron += ing.iron_mg;
+    vitC += ing.vitamin_c_mg;
+    potassium += ing.potassium_mg;
+
+    const existing = prev.items[idx];
+    return {
+      id: ing.id,
+      name: ing.name,
+      portion_grams: ing.estimated_grams,
+      calories: ing.calories,
+      protein: ing.protein,
+      carbs: ing.carbohydrates,
+      fats: ing.fats,
+      calories_per_100g: ing.calories_per_100g,
+      protein_per_100g: ing.protein_per_100g,
+      carbs_per_100g: ing.carbs_per_100g,
+      fats_per_100g: ing.fats_per_100g,
+      fibre_per_100g: ing.fibre_per_100g,
+      sugar_per_100g: ing.sugar_per_100g,
+      sodium_mg_per_100g: ing.sodium_mg_per_100g,
+      fibre: ing.fibre,
+      sugar: ing.sugar,
+      sodium_mg: ing.sodium_mg,
+      source_type: ing.source_type,
+      source_label: ing.source_label,
+      confident: ing.confident,
+      needs_confirmation: ing.needs_confirmation,
+      uncertainty_reason: ing.uncertainty_reason,
+      initial_portion_grams:
+        prev.initialIngredientGrams[ing.id] ?? existing?.initial_portion_grams ?? ing.estimated_grams,
+    };
+  });
+
+  const totals = computeTotals(syncedItems);
+  const otherNutrients = [
+    calcium > 0
+      ? { name: "Calcium", amount: round2(calcium), unit: "mg", source: "ICMR–NIN / USDA per-100g tables" }
+      : null,
+    iron > 0
+      ? { name: "Iron", amount: round2(iron), unit: "mg", source: "ICMR–NIN / USDA per-100g tables" }
+      : null,
+    vitC > 0
+      ? { name: "Vitamin C", amount: round2(vitC), unit: "mg", source: "ICMR–NIN / USDA per-100g tables" }
+      : null,
+    potassium > 0
+      ? { name: "Potassium", amount: round2(potassium), unit: "mg", source: "ICMR–NIN / USDA per-100g tables" }
+      : null,
+  ].filter((n): n is NonNullable<typeof n> => n !== null);
+
+  return {
+    ...prev,
+    ingredients: nextIngredients,
+    items: syncedItems,
+    totals,
+    estimatedPortion: {
+      amount: totals.portion_grams,
+      unit: "g",
+      label: `~${Math.round(totals.portion_grams)} g adjusted serving`,
+    },
+    fibre: round2(fibre),
+    sugar: round2(sugar),
+    sodiumMg: round2(sodiumMg),
+    otherNutrients,
+  };
+}
 
 export function ScannerView({
   scanSession,
   onScanComplete,
+  onUpdateSession,
   onUpdateItems,
   dailyTargets,
   onNavigate,
   onMealLogged,
 }: ScannerViewProps) {
-  const prefersReduced = useReducedMotion();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraCaptureInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadSectionRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const recalcAbortRef = useRef<AbortController | null>(null);
@@ -100,20 +277,22 @@ export function ScannerView({
     scanSession?.imagePreviewUrl ?? null,
   );
   const [isDragging, setIsDragging] = useState(false);
+  const [uploaderOpen, setUploaderOpen] = useState<boolean>(
+    !scanSession || scanSession.ingredients.length === 0,
+  );
 
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
 
   const [scanning, setScanning] = useState(false);
+  const [scanStageText, setScanStageText] = useState("");
   const [scanError, setScanError] = useState<string | null>(null);
-  const [recalcStatus, setRecalcStatus] = useState<"idle" | "syncing" | "synced">(
-    "idle",
-  );
+  const [recalcStatus, setRecalcStatus] = useState<"idle" | "syncing" | "synced">("idle");
   const [scanHistory, setScanHistory] = useState<CompactScanHistory[]>(() =>
     loadScanHistory(),
   );
 
-  // Log meal form state
+  // Meal logging form
   const [mealName, setMealName] = useState("");
   const [mealType, setMealType] = useState<MealType>("lunch");
   const [mealNotes, setMealNotes] = useState("");
@@ -121,36 +300,58 @@ export function ScannerView({
   const [logError, setLogError] = useState<string | null>(null);
   const [logSuccess, setLogSuccess] = useState(false);
 
-  const items = scanSession?.items ?? [];
-  const totals = scanSession?.totals ?? {
-    portion_grams: 0,
-    calories: 0,
-    protein: 0,
-    carbs: 0,
-    fats: 0,
-  };
+  const hasRichAnalysis = Boolean(scanSession && scanSession.ingredients.length > 0);
 
-  // Suggest meal name whenever new scan items arrive
+  // Keep meal name initialized from analyzed food name
   useEffect(() => {
-    if (items.length > 0) {
-      const topNames = items.slice(0, 3).map((item) => item.name);
-      const suggested =
-        items.length > 3
-          ? `${topNames.join(", ")} +${items.length - 3} more`
-          : topNames.join(", ");
-      setMealName(suggested);
+    if (scanSession) {
+      setMealName(scanSession.foodName || scanSession.items.slice(0, 2).map((i) => i.name).join(", "));
+      if (scanSession.imagePreviewUrl && !selectedFile) {
+        setPreviewUrl(scanSession.imagePreviewUrl);
+      }
       setLogSuccess(false);
       setLogError(null);
     }
   }, [scanSession?.scannedAt]);
 
-  // Clean up webcam stream on unmount
   useEffect(() => {
     return () => {
       stopWebcamStream();
       recalcAbortRef.current?.abort();
     };
   }, []);
+
+  // Debounced server recalculation sync when quantities adjust
+  useEffect(() => {
+    if (!scanSession || scanSession.items.length === 0 || recalcStatus !== "syncing") {
+      return;
+    }
+
+    const controller = new AbortController();
+    recalcAbortRef.current = controller;
+
+    const timer = window.setTimeout(async () => {
+      try {
+        const res = await recalculateMacros(scanSession.items, controller.signal);
+        if (controller.signal.aborted) return;
+        const syncedItems: EditableFoodItem[] = scanSession.items.map((existing, idx) => {
+          const updated = res.items[idx];
+          return updated ? { ...existing, ...updated } : existing;
+        });
+        onUpdateItems(syncedItems, res.totals);
+        setRecalcStatus("synced");
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          setRecalcStatus("idle");
+        }
+      }
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [scanSession?.items, recalcStatus]);
 
   function stopWebcamStream() {
     if (streamRef.current) {
@@ -215,31 +416,35 @@ export function ScannerView({
           { type: "image/jpeg" },
         );
         stopWebcamStream();
-        handleFileSelected(capturedFile);
+        void handleFileSelected(capturedFile);
       },
       "image/jpeg",
       0.92,
     );
   }
 
-  function handleFileSelected(file: File) {
+  async function handleFileSelected(file: File) {
     setScanError(null);
     setLogSuccess(false);
-    setSelectedFile(file);
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setPreviewUrl(reader.result);
-      }
-    };
-    reader.readAsDataURL(file);
+    const validation = await validateFoodImageFile(file);
+    if (!validation.valid) {
+      setSelectedFile(null);
+      setScanError(validation.error || "Unsupported image file.");
+      return;
+    }
+
+    setSelectedFile(file);
+    const compactUrl = await createCompactPreviewUrl(file);
+    if (compactUrl) {
+      setPreviewUrl(compactUrl);
+    }
   }
 
   function handleInputChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (file) {
-      handleFileSelected(file);
+      void handleFileSelected(file);
     }
     event.target.value = "";
   }
@@ -249,43 +454,43 @@ export function ScannerView({
     setIsDragging(false);
     const file = event.dataTransfer.files?.[0];
     if (file) {
-      handleFileSelected(file);
+      void handleFileSelected(file);
     }
   }
 
   async function handleAnalyzeMeal() {
     if (!selectedFile) {
-      setScanError("Please upload or capture a food image first.");
+      setScanError("Please upload or capture a valid JPG, PNG, or WEBP food photo first.");
       return;
     }
 
     setScanning(true);
     setScanError(null);
     setRecalcStatus("idle");
+    setScanStageText("1/3 Verifying image format & binary MIME signature...");
+
+    const stageTimer1 = window.setTimeout(() => {
+      setScanStageText("2/3 Detecting dish & ingredients with Gemini Vision...");
+    }, 650);
+    const stageTimer2 = window.setTimeout(() => {
+      setScanStageText("3/3 Fetching nutrients from ICMR–NIN & USDA tables...");
+    }, 1850);
 
     try {
       const result = await scanFoodImage(selectedFile);
-      const editableItems: EditableFoodItem[] = result.items.map((item, idx) => ({
-        ...item,
-        id: `${Date.now()}-${idx}`,
-        initial_portion_grams: item.portion_grams,
-      }));
-
-      const sessionPayload: ScanSession = {
-        imagePreviewUrl: previewUrl,
-        fileName: selectedFile.name,
-        items: editableItems,
-        totals: result.totals,
-        alternatives: result.healthier_alternatives,
-        scannedAt: new Date().toISOString(),
-      };
-      onScanComplete(sessionPayload);
+      const nextSession = buildSessionFromScanResponse(
+        result,
+        previewUrl,
+        selectedFile.name,
+      );
+      onScanComplete(nextSession);
+      setUploaderOpen(false);
 
       const newEntry: CompactScanHistory = {
         id: `${Date.now()}`,
-        scannedAt: sessionPayload.scannedAt,
-        itemsSummary: editableItems.map((i) => i.name).slice(0, 3).join(", "),
-        itemCount: editableItems.length,
+        scannedAt: nextSession.scannedAt,
+        itemsSummary: nextSession.foodName,
+        itemCount: nextSession.ingredients.length,
         calories: Math.round(result.totals.calories),
         protein: Math.round(result.totals.protein * 10) / 10,
       };
@@ -302,77 +507,98 @@ export function ScannerView({
       setScanError(
         error instanceof Error
           ? error.message
-          : "Unable to scan food image. Ensure the backend server is running.",
+          : "Unable to analyze food image. Ensure the backend server is running.",
       );
     } finally {
+      window.clearTimeout(stageTimer1);
+      window.clearTimeout(stageTimer2);
       setScanning(false);
+      setScanStageText("");
     }
   }
 
-  // Debounced server recalculation whenever portions change
-  useEffect(() => {
-    if (!scanSession || items.length === 0 || recalcStatus !== "syncing") {
-      return;
-    }
-
-    const controller = new AbortController();
-    recalcAbortRef.current = controller;
-
-    const timer = window.setTimeout(async () => {
-      try {
-        const res = await recalculateMacros(items, controller.signal);
-        if (controller.signal.aborted) return;
-        const syncedItems: EditableFoodItem[] = items.map((existing, idx) => {
-          const updated = res.items[idx];
-          if (!updated) return existing;
-          return {
-            ...existing,
-            ...updated,
-          };
-        });
-        onUpdateItems(syncedItems, res.totals);
-        setRecalcStatus("synced");
-      } catch (err) {
-        if ((err as Error).name !== "AbortError") {
-          setRecalcStatus("idle");
-        }
-      }
-    }, 300);
-
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [items, recalcStatus]);
-
-  function handlePortionChange(itemId: string, nextGrams: number) {
-    const safeGrams = Number.isFinite(nextGrams) ? Math.max(0, nextGrams) : 0;
-    const updatedItems = items.map((item) =>
-      item.id === itemId ? scaleItemFromPortion(item, safeGrams) : item,
+  function handleChangeIngredientGrams(ingredientId: string, grams: number) {
+    if (!scanSession) return;
+    const safeGrams = Number.isFinite(grams) ? Math.max(0, grams) : 0;
+    const nextIngredients = scanSession.ingredients.map((ing) =>
+      ing.id === ingredientId ? scaleIngredientFromGrams(ing, safeGrams) : ing,
     );
-    const updatedTotals = computeTotals(updatedItems);
-    onUpdateItems(updatedItems, updatedTotals);
+    const nextSession = recomputeSessionFromIngredients(scanSession, nextIngredients);
+    onUpdateSession(nextSession);
     setRecalcStatus("syncing");
     setLogSuccess(false);
   }
 
-  function handleResetPortion(itemId: string) {
-    const target = items.find((item) => item.id === itemId);
-    if (!target) return;
-    handlePortionChange(itemId, target.initial_portion_grams);
+  function handleConfirmIngredient(ingredientId: string) {
+    if (!scanSession) return;
+    const nextIngredients = scanSession.ingredients.map((ing) =>
+      ing.id === ingredientId
+        ? { ...ing, confirmed_by_user: true, needs_confirmation: false, confident: true }
+        : ing,
+    );
+    const nextSession = recomputeSessionFromIngredients(scanSession, nextIngredients);
+    onUpdateSession(nextSession);
+    setLogSuccess(false);
   }
 
-  function handleResetAllPortions() {
-    const resetItems = items.map((item) =>
+  function handleRemoveIngredient(ingredientId: string) {
+    handleChangeIngredientGrams(ingredientId, 0);
+  }
+
+  function handleReplaceIngredient(
+    ingredientId: string,
+    replacement: AnalyzedIngredient,
+  ) {
+    if (!scanSession) return;
+    const nextIngredients = scanSession.ingredients.map((ing) =>
+      ing.id === ingredientId ? { ...replacement, id: ingredientId } : ing,
+    );
+    const nextSession = recomputeSessionFromIngredients(scanSession, nextIngredients);
+    onUpdateSession(nextSession);
+    setRecalcStatus("syncing");
+    setLogSuccess(false);
+  }
+
+  function handleApplyServingMultiplier(multiplier: number) {
+    if (!scanSession) return;
+    const nextIngredients = scanSession.ingredients.map((ing) => {
+      const baseG = scanSession.initialIngredientGrams[ing.id] ?? ing.estimated_grams;
+      return scaleIngredientFromGrams(ing, round2(baseG * multiplier));
+    });
+    const nextSession = recomputeSessionFromIngredients(scanSession, nextIngredients);
+    onUpdateSession(nextSession);
+    setRecalcStatus("syncing");
+    setLogSuccess(false);
+  }
+
+  function handleResetPortions() {
+    if (!scanSession) return;
+    const nextIngredients = scanSession.ingredients.map((ing) => {
+      const baseG = scanSession.initialIngredientGrams[ing.id] ?? ing.estimated_grams;
+      return scaleIngredientFromGrams(ing, baseG);
+    });
+    const nextItems = scanSession.items.map((item) =>
       scaleItemFromPortion(item, item.initial_portion_grams),
     );
-    onUpdateItems(resetItems, computeTotals(resetItems));
+    const baseSession: ScanSession = {
+      ...recomputeSessionFromIngredients(scanSession, nextIngredients),
+      items: nextItems,
+    };
+    onUpdateSession(baseSession);
     setRecalcStatus("syncing");
     setLogSuccess(false);
+  }
+
+  function handleOpenUploaderForNewMeal() {
+    setUploaderOpen(true);
+    setScanError(null);
+    window.setTimeout(() => {
+      uploadSectionRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 60);
   }
 
   async function handleLogMeal() {
-    if (items.length === 0) return;
+    if (!scanSession || scanSession.items.length === 0) return;
 
     setLogging(true);
     setLogError(null);
@@ -380,17 +606,19 @@ export function ScannerView({
 
     try {
       await createMealLog({
-        meal_name: mealName.trim() || undefined,
+        meal_name: mealName.trim() || scanSession.foodName || undefined,
         meal_type: mealType,
         notes: mealNotes.trim() || undefined,
-        items: items.map((item) => ({
-          name: item.name,
-          portion_grams: item.portion_grams,
-          calories: item.calories,
-          protein: item.protein,
-          carbs: item.carbs,
-          fats: item.fats,
-        })),
+        items: scanSession.items
+          .filter((i) => i.portion_grams > 0)
+          .map((item) => ({
+            name: item.name,
+            portion_grams: item.portion_grams,
+            calories: item.calories,
+            protein: item.protein,
+            carbs: item.carbs,
+            fats: item.fats,
+          })),
       });
       setLogSuccess(true);
       onMealLogged();
@@ -413,7 +641,7 @@ export function ScannerView({
 
   return (
     <div className="space-y-8 pb-10">
-      {/* Header */}
+      {/* Scanner Header */}
       <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#121212] px-6 py-6 sm:px-8">
         <div
           aria-hidden="true"
@@ -423,56 +651,79 @@ export function ScannerView({
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#A3FF12]/30 bg-[#A3FF12]/10 px-3 py-1 text-xs font-semibold text-[#A3FF12]">
               <ScanLine className="h-3.5 w-3.5" />
-              Gemini Vision • POST /api/scan
+              Gemini Vision + ICMR–NIN &amp; USDA Hybrid Engine
             </span>
             <h1 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-white">
               AI Food Scanner
             </h1>
             <p className="mt-1.5 max-w-2xl text-sm text-[#A1A1AA]">
-              Upload or capture a meal photo to detect every food item, fine-tune
-              portions with live gram sliders, inspect macro bars, and save to
-              your Dashboard.
+              Upload any JPG, JPEG, PNG, or WEBP food photo to inspect visible ingredients, confirm uncertain items, and compute database-grounded nutrition.
             </p>
           </div>
 
-          {scanSession && scanSession.alternatives.length > 0 && (
-            <motion.button
-              type="button"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => onNavigate("alternatives")}
-              className="inline-flex items-center gap-2 rounded-full border border-[#34D399]/35 bg-[#34D399]/10 px-4 py-2.5 text-sm font-semibold text-[#34D399] transition hover:bg-[#34D399]/20"
-            >
-              <Sparkles className="h-4 w-4" />
-              <span>View {scanSession.alternatives.length} Healthier Swaps</span>
-              <ArrowRight className="h-4 w-4" />
-            </motion.button>
-          )}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {hasRichAnalysis && !uploaderOpen && (
+              <button
+                type="button"
+                onClick={handleOpenUploaderForNewMeal}
+                className="inline-flex items-center gap-2 rounded-full bg-[#A3FF12] px-4 py-2 text-xs font-bold text-[#050706] transition hover:bg-[#b8ff42]"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                <span>Scan New Photo</span>
+              </button>
+            )}
+            {scanSession && scanSession.alternatives.length > 0 && (
+              <motion.button
+                type="button"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onNavigate("alternatives")}
+                className="inline-flex items-center gap-2 rounded-full border border-[#34D399]/35 bg-[#34D399]/10 px-4 py-2 text-xs font-semibold text-[#34D399] transition hover:bg-[#34D399]/20"
+              >
+                <Sparkles className="h-4 w-4" />
+                <span>View {scanSession.alternatives.length} Swaps</span>
+                <ArrowRight className="h-4 w-4" />
+              </motion.button>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Main Two-Column Grid */}
-      <div className="grid gap-6 lg:grid-cols-12">
-        {/* Left Column: Image Upload / Camera + Scan Trigger + Macro Progress */}
-        <div className="space-y-6 lg:col-span-5">
-          <div className="rounded-2xl border border-white/[0.08] bg-[#121212] p-5 shadow-xl">
+      {/* Upload & Camera Dock (Always open initially or when 'Scan New Photo' clicked) */}
+      {(uploaderOpen || !hasRichAnalysis) && (
+        <div
+          ref={uploadSectionRef}
+          className="grid gap-6 lg:grid-cols-12"
+        >
+          <div className="rounded-3xl border border-white/[0.08] bg-[#121212] p-5 shadow-xl sm:p-6 lg:col-span-7">
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#A3FF12]/10 text-[#A3FF12]">
                   <Camera className="h-4 w-4" />
                 </span>
                 <h2 className="font-display text-base font-semibold text-white">
-                  Meal Image Input
+                  Upload or Capture Meal Photo
                 </h2>
               </div>
-              {fileSizeLabel && (
-                <span className="rounded-lg border border-white/10 bg-[#171717] px-2.5 py-0.5 font-mono text-[11px] text-zinc-300">
-                  {fileSizeLabel}
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {fileSizeLabel && (
+                  <span className="rounded-lg border border-white/10 bg-[#171717] px-2.5 py-0.5 font-mono text-[11px] text-zinc-300">
+                    {fileSizeLabel}
+                  </span>
+                )}
+                {hasRichAnalysis && (
+                  <button
+                    type="button"
+                    onClick={() => setUploaderOpen(false)}
+                    className="rounded-lg border border-white/10 p-1 text-zinc-400 hover:text-white"
+                    aria-label="Hide upload panel"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
             </div>
 
-            {/* Live Webcam View or Animated Dropzone */}
             <AnimatePresence mode="wait">
               {cameraOpen ? (
                 <motion.div
@@ -488,13 +739,9 @@ export function ScannerView({
                       ref={videoRef}
                       playsInline
                       muted
-                      className="aspect-[4/3] w-full object-cover"
+                      className="aspect-[16/10] w-full object-cover"
                     />
-                    {/* Viewfinder Reticle */}
-                    <div
-                      aria-hidden="true"
-                      className="pointer-events-none absolute inset-4"
-                    >
+                    <div aria-hidden="true" className="pointer-events-none absolute inset-4">
                       <span className="absolute top-0 left-0 h-5 w-5 rounded-tl-md border-t-2 border-l-2 border-[#A3FF12]" />
                       <span className="absolute top-0 right-0 h-5 w-5 rounded-tr-md border-t-2 border-r-2 border-[#A3FF12]" />
                       <span className="absolute bottom-0 left-0 h-5 w-5 rounded-bl-md border-b-2 border-l-2 border-[#34D399]" />
@@ -509,23 +756,17 @@ export function ScannerView({
                       <X className="h-4 w-4" />
                     </button>
                   </div>
-                  <motion.button
+                  <button
                     type="button"
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.98 }}
                     onClick={captureWebcamFrame}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#A3FF12] px-4 py-3 text-sm font-bold text-[#0A0A0A] shadow-[0_0_24px_rgba(163,255,18,0.25)] transition hover:bg-[#b5ff3b]"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#A3FF12] px-4 py-3 text-sm font-bold text-[#050706] shadow-[0_0_24px_rgba(163,255,18,0.25)] transition hover:bg-[#b8ff42]"
                   >
                     <Camera className="h-4 w-4" />
                     <span>Capture Meal Photo</span>
-                  </motion.button>
+                  </button>
                 </motion.div>
               ) : (
-                <motion.div
-                  key="dropzone"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                <div
                   onDragOver={(e) => {
                     e.preventDefault();
                     setIsDragging(true);
@@ -536,104 +777,75 @@ export function ScannerView({
                     isDragging
                       ? "scale-[1.01] border-[#A3FF12] bg-[#A3FF12]/10 shadow-[0_0_32px_rgba(163,255,18,0.18)]"
                       : previewUrl
-                        ? "border-white/15 bg-[#0A0A0A]"
-                        : "border-white/15 bg-[#0A0A0A] hover:border-[#34D399]/50"
+                        ? "border-white/15 bg-[#050706]"
+                        : "border-white/15 bg-[#050706] hover:border-[#34D399]/50"
                   }`}
                 >
-                  <AnimatePresence mode="wait">
-                    {previewUrl ? (
-                      <motion.div
-                        key={previewUrl}
-                        initial={{ opacity: 0, scale: 0.98 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.3, ease: EASE_PREMIUM }}
-                        className="relative"
-                      >
-                        <img
-                          src={previewUrl}
-                          alt="Selected meal preview"
-                          className="aspect-[4/3] w-full object-cover"
-                        />
+                  {previewUrl ? (
+                    <div className="relative">
+                      <img
+                        src={previewUrl}
+                        alt="Selected meal preview"
+                        className="aspect-[16/10] w-full object-cover"
+                      />
 
-                        {/* Animated AI Scanning Overlay */}
-                        {scanning && (
-                          <div className="absolute inset-0 overflow-hidden bg-[#0A0A0A]/70 backdrop-blur-[2px]">
-                            {/* Laser Scan Beam */}
-                            <div
-                              aria-hidden="true"
-                              className="animate-scan-beam absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-[#A3FF12] to-transparent shadow-[0_0_20px_4px_rgba(163,255,18,0.65)]"
-                            />
-                            {/* Corner Brackets */}
-                            <div
-                              aria-hidden="true"
-                              className="pointer-events-none absolute inset-4"
-                            >
-                              <span className="absolute top-0 left-0 h-6 w-6 rounded-tl-lg border-t-2 border-l-2 border-[#A3FF12]" />
-                              <span className="absolute top-0 right-0 h-6 w-6 rounded-tr-lg border-t-2 border-r-2 border-[#A3FF12]" />
-                              <span className="absolute bottom-0 left-0 h-6 w-6 rounded-bl-lg border-b-2 border-l-2 border-[#34D399]" />
-                              <span className="absolute right-0 bottom-0 h-6 w-6 rounded-br-lg border-r-2 border-b-2 border-[#34D399]" />
+                      {scanning && (
+                        <div className="absolute inset-0 overflow-hidden bg-[#050706]/75 backdrop-blur-[2px]">
+                          <div
+                            aria-hidden="true"
+                            className="animate-scan-beam absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-[#A3FF12] to-transparent shadow-[0_0_20px_4px_rgba(163,255,18,0.65)]"
+                          />
+                          <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#A3FF12]/40 bg-[#050706]/90">
+                              <Loader2 className="h-6 w-6 animate-spin text-[#A3FF12]" />
                             </div>
-                            <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
-                              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#A3FF12]/40 bg-[#0A0A0A]/90 shadow-[0_0_24px_rgba(163,255,18,0.3)]">
-                                <Loader2 className="h-6 w-6 animate-spin text-[#A3FF12]" />
-                              </div>
-                              <div className="rounded-xl border border-white/10 bg-[#0A0A0A]/85 px-4 py-2.5">
-                                <p className="text-sm font-semibold text-white">
-                                  Analyzing ingredients &amp; macros...
-                                </p>
-                                <p className="mt-0.5 font-mono text-[11px] text-[#34D399]">
-                                  Gemini Vision • Detecting portions &amp; 3 swaps
-                                </p>
-                              </div>
+                            <div className="rounded-xl border border-white/10 bg-[#050706]/90 px-4 py-2.5">
+                              <p className="text-sm font-semibold text-white">
+                                {scanStageText || "Analyzing meal photo..."}
+                              </p>
+                              <p className="mt-0.5 font-mono text-[11px] text-[#34D399]">
+                                Gemini Vision + ICMR–NIN / USDA Lookup
+                              </p>
                             </div>
                           </div>
-                        )}
-
-                        {!scanning && (
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            className="absolute right-3 bottom-3 rounded-xl border border-white/15 bg-[#0A0A0A]/85 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md transition hover:border-[#A3FF12]/50"
-                          >
-                            Change Photo
-                          </button>
-                        )}
-                      </motion.div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        className="group flex aspect-[4/3] w-full flex-col items-center justify-center gap-3.5 p-6 text-center transition hover:bg-white/[0.02]"
-                      >
-                        <motion.div
-                          animate={
-                            isDragging && !prefersReduced
-                              ? { scale: 1.12, y: -4 }
-                              : { scale: 1, y: 0 }
-                          }
-                          className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#A3FF12]/30 bg-[#A3FF12]/10 text-[#A3FF12] shadow-[0_0_24px_rgba(163,255,18,0.12)] transition group-hover:border-[#A3FF12]/60"
-                        >
-                          <ImagePlus className="h-6 w-6" />
-                        </motion.div>
-                        <div>
-                          <p className="text-sm font-semibold text-white">
-                            {isDragging
-                              ? "Release to drop your food photo"
-                              : "Drop your food photo here, or browse"}
-                          </p>
-                          <p className="mt-1 text-xs text-[#A1A1AA]">
-                            JPEG, PNG, WEBP, GIF, or HEIC up to 20 MB
-                          </p>
                         </div>
-                      </button>
-                    )}
-                  </AnimatePresence>
-                </motion.div>
+                      )}
+
+                      {!scanning && (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="absolute right-3 bottom-3 rounded-xl border border-white/15 bg-[#050706]/85 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md transition hover:border-[#A3FF12]/50"
+                        >
+                          Change Photo
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="group flex aspect-[16/10] w-full flex-col items-center justify-center gap-3.5 p-6 text-center transition hover:bg-white/[0.02]"
+                    >
+                      <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#A3FF12]/30 bg-[#A3FF12]/10 text-[#A3FF12] shadow-[0_0_24px_rgba(163,255,18,0.12)] transition group-hover:scale-105">
+                        <ImagePlus className="h-6 w-6" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">
+                          {isDragging
+                            ? "Release to drop your food photo"
+                            : "Drop your meal photo here, or browse"}
+                        </p>
+                        <p className="mt-1 text-xs text-[#A1A1AA]">
+                          Strict JPG, JPEG, PNG, or WEBP verified by binary header (up to 20 MB)
+                        </p>
+                      </div>
+                    </button>
+                  )}
+                </div>
               )}
             </AnimatePresence>
 
-            {/* Hidden File + Mobile Camera Inputs */}
             <input
               ref={fileInputRef}
               type="file"
@@ -644,40 +856,33 @@ export function ScannerView({
             <input
               ref={cameraCaptureInputRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               capture="environment"
               onChange={handleInputChange}
               className="hidden"
             />
 
-            {/* Upload / Camera Controls */}
             <div className="mt-4 grid grid-cols-3 gap-2.5">
-              <motion.button
+              <button
                 type="button"
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.97 }}
                 onClick={() => fileInputRef.current?.click()}
                 className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-[#171717] px-3 py-2.5 text-xs font-medium text-white transition hover:border-white/25 hover:bg-white/[0.08]"
               >
                 <Upload className="h-3.5 w-3.5 text-[#34D399]" />
                 <span>Upload</span>
-              </motion.button>
+              </button>
 
-              <motion.button
+              <button
                 type="button"
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.97 }}
                 onClick={() => cameraCaptureInputRef.current?.click()}
                 className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-[#171717] px-3 py-2.5 text-xs font-medium text-white transition hover:border-white/25 hover:bg-white/[0.08]"
               >
                 <Camera className="h-3.5 w-3.5 text-[#A3FF12]" />
                 <span>Take Photo</span>
-              </motion.button>
+              </button>
 
-              <motion.button
+              <button
                 type="button"
-                whileHover={{ y: -1 }}
-                whileTap={{ scale: 0.97 }}
                 onClick={cameraOpen ? stopWebcamStream : startWebcamStream}
                 className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-medium transition ${
                   cameraOpen
@@ -687,7 +892,7 @@ export function ScannerView({
               >
                 <Video className="h-3.5 w-3.5 text-[#34D399]" />
                 <span>{cameraOpen ? "Stop Cam" : "Live Cam"}</span>
-              </motion.button>
+              </button>
             </div>
 
             {cameraError && (
@@ -706,8 +911,8 @@ export function ScannerView({
                 {selectedFile && !scanning && (
                   <button
                     type="button"
-                    onClick={handleAnalyzeMeal}
-                    className="shrink-0 rounded-lg border border-rose-400/40 bg-[#0A0A0A] px-2.5 py-1 text-[11px] font-semibold text-white hover:border-white/40"
+                    onClick={() => void handleAnalyzeMeal()}
+                    className="shrink-0 rounded-lg border border-rose-400/40 bg-[#050706] px-2.5 py-1 text-[11px] font-semibold text-white hover:border-white/40"
                   >
                     Retry Scan
                   </button>
@@ -715,435 +920,126 @@ export function ScannerView({
               </div>
             )}
 
-            <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
-              AI Estimate Note: Food portions and macros are estimated from
-              visible imagery using Gemini Vision — refine grams anytime with
-              the live sliders.
-            </p>
-
-            <motion.button
+            <button
               type="button"
-              whileHover={selectedFile && !scanning ? { scale: 1.015 } : undefined}
-              whileTap={selectedFile && !scanning ? { scale: 0.985 } : undefined}
-              onClick={handleAnalyzeMeal}
+              onClick={() => void handleAnalyzeMeal()}
               disabled={scanning || !selectedFile}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#A3FF12] px-5 py-3.5 text-sm font-bold text-[#0A0A0A] shadow-[0_0_26px_rgba(163,255,18,0.24)] transition hover:bg-[#b5ff3b] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#A3FF12] px-5 py-3.5 text-sm font-bold text-[#050706] shadow-[0_0_26px_rgba(163,255,18,0.24)] transition hover:bg-[#b8ff42] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
             >
               {scanning ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Scanning with NutriSense AI...</span>
+                  <span>{scanStageText || "Analyzing Food Image..."}</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4" />
-                  <span>Analyze Meal</span>
+                  <span>Analyze Meal with Hybrid AI + DB</span>
                 </>
               )}
-            </motion.button>
+            </button>
           </div>
 
-          {/* Macro Progress Bars Panel */}
-          <div className="rounded-2xl border border-white/[0.08] bg-[#121212] p-5 shadow-xl">
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <div>
-                <h2 className="font-display text-base font-semibold text-white">
-                  Meal Macro Progress
-                </h2>
-                <p className="text-xs text-[#A1A1AA]">
-                  Measured against your {dailyTargets.calories.toLocaleString()} kcal daily goal
-                </p>
-              </div>
-              <span className="rounded-full border border-white/10 bg-[#0A0A0A] px-3 py-1 font-mono text-xs font-semibold text-[#34D399] tabular-nums">
-                <AnimatedNumber value={totals.portion_grams} suffix=" g total" />
-              </span>
-            </div>
-
-            <MacroProgressBars
-              calories={totals.calories}
-              protein={totals.protein}
-              carbs={totals.carbs}
-              fats={totals.fats}
-              targets={dailyTargets}
-            />
-          </div>
-
-          {/* Recent Scan Session History (compact browser records) */}
-          {scanHistory.length > 0 && (
-            <div className="rounded-2xl border border-white/[0.08] bg-[#121212] p-5 shadow-xl">
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-display text-sm font-bold text-white">
-                  Recent AI Scans
-                </h2>
-                <span className="font-mono text-[11px] text-[#34D399]">
-                  Last {scanHistory.length}
-                </span>
-              </div>
-              <ul className="space-y-2">
-                {scanHistory.map((entry) => (
-                  <li
-                    key={entry.id}
-                    className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.05] bg-[#0A0A0A] px-3 py-2 text-xs"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-zinc-200">
-                        {entry.itemsSummary || `${entry.itemCount} food items`}
-                      </p>
-                      <p className="text-[10px] text-zinc-500">
-                        {new Date(entry.scannedAt).toLocaleString([], {
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </p>
-                    </div>
-                    <span className="shrink-0 font-mono text-[11px] font-bold text-[#A3FF12]">
-                      {entry.calories} kcal
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
-
-        {/* Right Column: Detected Items with Portion Sliders & Log Meal */}
-        <div className="space-y-6 lg:col-span-7">
-          <div className="rounded-2xl border border-white/[0.08] bg-[#121212] p-5 shadow-xl sm:p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
-              <div>
-                <h2 className="font-display text-lg font-bold text-white">
-                  Detected Food Items &amp; Portion Sliders
-                </h2>
-                <p className="mt-0.5 text-xs text-[#A1A1AA]">
-                  Drag any slider to edit portion size in grams; macros recalculate live.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2.5">
-                {recalcStatus === "syncing" && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#171717] px-2.5 py-1 text-xs text-[#A1A1AA]">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[#A3FF12]" />
-                    Syncing...
+          {/* Right Panel: How Hybrid Analysis Works & Recent Scan History */}
+          <div className="space-y-6 lg:col-span-5">
+            <div className="rounded-3xl border border-white/[0.08] bg-[#121212] p-6">
+              <p className="font-mono text-xs font-bold uppercase tracking-wider text-[#34D399]">
+                How Hybrid Analysis Works
+              </p>
+              <ol className="mt-4 space-y-3 text-xs text-[#A1A1AA]">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#A3FF12]" />
+                  <span>
+                    <strong className="text-white">Strict Image Validation:</strong> Verifies JPG, PNG, or WEBP binary bytes before transmission.
                   </span>
-                )}
-                {recalcStatus === "synced" && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[#34D399]/10 px-2.5 py-1 text-xs font-medium text-[#34D399]">
-                    <Check className="h-3.5 w-3.5" />
-                    Synced
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#34D399]" />
+                  <span>
+                    <strong className="text-white">Gemini Vision Recognition:</strong> Detects the dish, extracts individual visible &amp; uncertain ingredients, and estimates weights.
                   </span>
-                )}
-                {items.length > 0 && (
-                  <motion.button
-                    type="button"
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={handleResetAllPortions}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-[#171717] px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
-                  >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    Reset All
-                  </motion.button>
-                )}
-              </div>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[#A3FF12]" />
+                  <span>
+                    <strong className="text-white">ICMR–NIN &amp; USDA Calculation:</strong> Computes calories, protein, carbs, fats, fibre, sugar, sodium &amp; micronutrients directly from verified tables.
+                  </span>
+                </li>
+              </ol>
             </div>
 
-            {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-center">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-[#0A0A0A] text-[#34D399]">
-                  <Sparkles className="h-7 w-7" />
+            {scanHistory.length > 0 && (
+              <div className="rounded-3xl border border-white/[0.08] bg-[#121212] p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="font-display text-sm font-bold text-white">
+                    Recent AI Scans
+                  </h2>
+                  <span className="font-mono text-[11px] text-[#34D399]">
+                    Last {scanHistory.length}
+                  </span>
                 </div>
-                <p className="mt-5 font-display text-lg font-semibold text-white">
-                  {scanning ? "Analyzing Your Plate..." : "No food scanned yet"}
-                </p>
-                <p className="mt-1.5 max-w-sm text-sm text-[#A1A1AA]">
-                  {scanning
-                    ? "Gemini Vision is identifying items and calculating per-100g nutrition."
-                    : "Select or capture a food image on the left and click Analyze Meal to populate detected items with interactive portion sliders."}
-                </p>
-              </div>
-            ) : (
-              <div className="mt-5 space-y-4">
-                {items.map((item, idx) => {
-                  const sliderMax = Math.max(
-                    500,
-                    Math.ceil((item.initial_portion_grams * 2.5) / 10) * 10,
-                  );
-                  const fillPercent = Math.min(
-                    100,
-                    Math.max(0, (item.portion_grams / sliderMax) * 100),
-                  );
-
-                  return (
-                    <motion.div
-                      key={item.id}
-                      initial={prefersReduced ? false : { opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{
-                        duration: 0.35,
-                        delay: prefersReduced ? 0 : idx * 0.05,
-                        ease: EASE_PREMIUM,
-                      }}
-                      className="rounded-2xl border border-white/[0.08] bg-[#0A0A0A] p-4 transition-colors hover:border-white/20"
+                <ul className="space-y-2">
+                  {scanHistory.map((entry) => (
+                    <li
+                      key={entry.id}
+                      className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.05] bg-[#050706] px-3.5 py-2.5 text-xs"
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono text-[11px] font-semibold text-[#34D399]">
-                              #{idx + 1}
-                            </span>
-                            <h3 className="font-display text-base font-bold text-white">
-                              {item.name}
-                            </h3>
-                          </div>
-                          <p className="mt-1 font-mono text-[11px] text-zinc-500 tabular-nums">
-                            Base: {item.calories_per_100g} kcal / 100g • P{" "}
-                            {item.protein_per_100g}g • C {item.carbs_per_100g}g • F{" "}
-                            {item.fats_per_100g}g
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-2">
-                          <div className="flex items-center rounded-xl border border-white/10 bg-[#171717] px-2.5 py-1.5">
-                            <input
-                              type="number"
-                              min={0}
-                              max={2500}
-                              step={5}
-                              aria-label={`${item.name} portion in grams`}
-                              value={Math.round(item.portion_grams)}
-                              onChange={(e) =>
-                                handlePortionChange(
-                                  item.id,
-                                  Number.parseFloat(e.target.value || "0"),
-                                )
-                              }
-                              className="w-14 bg-transparent text-right font-mono text-sm font-semibold text-[#A3FF12] tabular-nums focus:outline-none"
-                            />
-                            <span className="ml-1 font-mono text-xs text-[#A1A1AA]">
-                              g
-                            </span>
-                          </div>
-
-                          {Math.abs(item.portion_grams - item.initial_portion_grams) >
-                            0.5 && (
-                            <button
-                              type="button"
-                              onClick={() => handleResetPortion(item.id)}
-                              title="Reset to detected portion"
-                              aria-label={`Reset ${item.name} portion`}
-                              className="rounded-xl border border-white/10 bg-[#171717] p-2 text-[#A1A1AA] transition hover:border-white/25 hover:text-white"
-                            >
-                              <RotateCcw className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-zinc-200">
+                          {entry.itemsSummary}
+                        </p>
+                        <p className="text-[10px] text-zinc-500">
+                          {entry.itemCount} ingredients •{" "}
+                          {new Date(entry.scannedAt).toLocaleString([], {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
                       </div>
-
-                      {/* Portion Range Slider */}
-                      <div className="mt-4">
-                        <input
-                          type="range"
-                          min={0}
-                          max={sliderMax}
-                          step={5}
-                          aria-label={`${item.name} portion slider`}
-                          value={Math.min(item.portion_grams, sliderMax)}
-                          onChange={(e) =>
-                            handlePortionChange(item.id, Number(e.target.value))
-                          }
-                          className="nutri-slider w-full"
-                          style={{
-                            background: `linear-gradient(to right, #A3FF12 0%, #34D399 ${fillPercent}%, rgba(255,255,255,0.12) ${fillPercent}%, rgba(255,255,255,0.12) 100%)`,
-                          }}
-                        />
-                        <div className="mt-1.5 flex justify-between font-mono text-[10px] text-zinc-500">
-                          <span>0g</span>
-                          <span>Detected: {Math.round(item.initial_portion_grams)}g</span>
-                          <span>{sliderMax}g</span>
-                        </div>
-                      </div>
-
-                      {/* Per-item Live Macros */}
-                      <div className="mt-3.5 grid grid-cols-2 gap-2 text-center font-mono text-xs tabular-nums sm:grid-cols-4">
-                        <div className="rounded-xl border border-white/[0.04] bg-[#121212] px-2.5 py-2">
-                          <span className="block text-[10px] text-zinc-500">
-                            CALORIES
-                          </span>
-                          <span className="font-semibold text-[#A3FF12]">
-                            {Math.round(item.calories)} kcal
-                          </span>
-                        </div>
-                        <div className="rounded-xl border border-white/[0.04] bg-[#121212] px-2.5 py-2">
-                          <span className="block text-[10px] text-zinc-500">
-                            PROTEIN
-                          </span>
-                          <span className="font-semibold text-[#34D399]">
-                            {item.protein.toFixed(1)} g
-                          </span>
-                        </div>
-                        <div className="rounded-xl border border-white/[0.04] bg-[#121212] px-2.5 py-2">
-                          <span className="block text-[10px] text-zinc-500">
-                            CARBS
-                          </span>
-                          <span className="font-semibold text-emerald-300">
-                            {item.carbs.toFixed(1)} g
-                          </span>
-                        </div>
-                        <div className="rounded-xl border border-white/[0.04] bg-[#121212] px-2.5 py-2">
-                          <span className="block text-[10px] text-zinc-500">
-                            FAT
-                          </span>
-                          <span className="font-semibold text-lime-200">
-                            {item.fats.toFixed(1)} g
-                          </span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
+                      <span className="shrink-0 font-mono text-[11px] font-bold text-[#A3FF12]">
+                        {entry.calories} kcal
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
-
-          {/* Log Meal to Dashboard */}
-          {items.length > 0 && (
-            <motion.div
-              initial={prefersReduced ? false : { opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, ease: EASE_PREMIUM }}
-              className="rounded-2xl border border-white/[0.08] bg-[#121212] p-5 shadow-xl sm:p-6"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <h2 className="font-display text-base font-bold text-white">
-                    Save Meal to Dashboard
-                  </h2>
-                  <p className="text-xs text-[#A1A1AA]">
-                    Logs adjusted portions via POST /api/logs so your daily totals stay accurate.
-                  </p>
-                </div>
-                <span className="rounded-full border border-[#A3FF12]/25 bg-[#A3FF12]/10 px-3 py-1 font-mono text-xs font-semibold text-[#A3FF12]">
-                  <AnimatedNumber value={totals.calories} suffix=" kcal total" />
-                </span>
-              </div>
-
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <div className="sm:col-span-2">
-                  <label
-                    htmlFor="meal-name"
-                    className="mb-1 block text-xs font-medium text-[#A1A1AA]"
-                  >
-                    Meal Name
-                  </label>
-                  <input
-                    id="meal-name"
-                    type="text"
-                    value={mealName}
-                    onChange={(e) => setMealName(e.target.value)}
-                    placeholder="e.g. Grilled Chicken Rice Bowl"
-                    className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3.5 py-2.5 text-sm text-white placeholder-zinc-600 focus:border-[#A3FF12]/60 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label
-                    htmlFor="meal-type"
-                    className="mb-1 block text-xs font-medium text-[#A1A1AA]"
-                  >
-                    Meal Type
-                  </label>
-                  <select
-                    id="meal-type"
-                    value={mealType}
-                    onChange={(e) => setMealType(e.target.value as MealType)}
-                    className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3.5 py-2.5 text-sm text-white focus:border-[#A3FF12]/60 focus:outline-none"
-                  >
-                    {MEAL_TYPE_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="mt-3">
-                <label
-                  htmlFor="meal-notes"
-                  className="mb-1 block text-xs font-medium text-[#A1A1AA]"
-                >
-                  Notes (optional)
-                </label>
-                <input
-                  id="meal-notes"
-                  type="text"
-                  value={mealNotes}
-                  onChange={(e) => setMealNotes(e.target.value)}
-                  placeholder="Optional notes about prep, dressing, or substitutions..."
-                  className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3.5 py-2 text-sm text-white placeholder-zinc-600 focus:border-[#A3FF12]/60 focus:outline-none"
-                />
-              </div>
-
-              {logError && (
-                <div className="mt-3 flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
-                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
-                  <span>{logError}</span>
-                </div>
-              )}
-
-              {logSuccess && (
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#34D399]/35 bg-[#34D399]/10 p-3 text-xs text-[#34D399]">
-                  <span className="inline-flex items-center gap-1.5 font-medium">
-                    <Check className="h-4 w-4" />
-                    Meal logged to your Dashboard!
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onNavigate("dashboard")}
-                    className="font-semibold text-[#A3FF12] hover:underline"
-                  >
-                    Open Dashboard →
-                  </button>
-                </div>
-              )}
-
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => onNavigate("alternatives")}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#34D399] transition hover:text-[#A3FF12]"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  <span>Explore 3 Healthier Alternatives</span>
-                </button>
-
-                <motion.button
-                  type="button"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleLogMeal}
-                  disabled={logging}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#34D399] px-5 py-2.5 text-sm font-bold text-[#0A0A0A] transition hover:bg-[#4adeb0] disabled:opacity-50"
-                >
-                  {logging ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      <span>Save Meal</span>
-                    </>
-                  )}
-                </motion.button>
-              </div>
-            </motion.div>
-          )}
         </div>
-      </div>
+      )}
+
+      {/* Full 3-Stage Scroll-Based Analysis Experience */}
+      {hasRichAnalysis && scanSession && (
+        <ScanExperienceStory
+          session={scanSession}
+          previewUrl={previewUrl}
+          dailyTargets={dailyTargets}
+          recalcStatus={recalcStatus}
+          onChangeIngredientGrams={handleChangeIngredientGrams}
+          onConfirmIngredient={handleConfirmIngredient}
+          onRemoveIngredient={handleRemoveIngredient}
+          onReplaceIngredient={handleReplaceIngredient}
+          onApplyServingMultiplier={handleApplyServingMultiplier}
+          onResetPortions={handleResetPortions}
+          onRescan={() => void handleAnalyzeMeal()}
+          onUploadNew={handleOpenUploaderForNewMeal}
+          onNavigate={onNavigate}
+          scanning={scanning}
+          hasSelectedFile={Boolean(selectedFile)}
+          mealName={mealName}
+          onMealNameChange={setMealName}
+          mealType={mealType}
+          onMealTypeChange={setMealType}
+          mealNotes={mealNotes}
+          onMealNotesChange={setMealNotes}
+          logging={logging}
+          logError={logError}
+          logSuccess={logSuccess}
+          onLogMeal={() => void handleLogMeal()}
+        />
+      )}
     </div>
   );
 }

@@ -95,6 +95,62 @@ export interface ScannedFoodItem extends FoodItemMacros {
   protein_per_100g: number;
   carbs_per_100g: number;
   fats_per_100g: number;
+  fibre_per_100g?: number;
+  sugar_per_100g?: number;
+  sodium_mg_per_100g?: number;
+  fibre?: number;
+  sugar?: number;
+  sodium_mg?: number;
+  source_type?: "icmr_nin" | "usda_fdc" | "unmatched";
+  source_label?: string;
+  confident?: boolean;
+  needs_confirmation?: boolean;
+  uncertainty_reason?: string | null;
+}
+
+export interface EstimatedPortion {
+  amount: number;
+  unit: string;
+  label: string;
+}
+
+export interface NutrientDetailMetric {
+  name: string;
+  amount: number;
+  unit: string;
+  source: string;
+}
+
+export interface AnalyzedIngredient {
+  id: string;
+  name: string;
+  canonical_match?: string | null;
+  estimated_grams: number;
+  unit: string;
+  confident: boolean;
+  needs_confirmation: boolean;
+  confirmed_by_user: boolean;
+  uncertainty_reason?: string | null;
+  source_type: "icmr_nin" | "usda_fdc" | "unmatched";
+  source_label: string;
+  calories: number;
+  protein: number;
+  carbohydrates: number;
+  fats: number;
+  fibre: number;
+  sugar: number;
+  sodium_mg: number;
+  calories_per_100g: number;
+  protein_per_100g: number;
+  carbs_per_100g: number;
+  fats_per_100g: number;
+  fibre_per_100g: number;
+  sugar_per_100g: number;
+  sodium_mg_per_100g: number;
+  calcium_mg: number;
+  iron_mg: number;
+  vitamin_c_mg: number;
+  potassium_mg: number;
 }
 
 export interface EditableFoodItem extends ScannedFoodItem {
@@ -113,6 +169,23 @@ export interface HealthierAlternative {
 }
 
 export interface ScanResponse {
+  food_name?: string;
+  food_description?: string;
+  ingredients?: AnalyzedIngredient[];
+  estimated_portion?: EstimatedPortion;
+  portion_confidence?: "high" | "medium" | "low";
+  calories?: number;
+  protein?: number;
+  carbohydrates?: number;
+  fats?: number;
+  fibre?: number;
+  sugar?: number;
+  sodium?: NutrientDetailMetric;
+  other_available_nutrients?: NutrientDetailMetric[];
+  confidence?: "high" | "medium" | "low";
+  data_sources?: string[];
+  analysis_limitations?: string[];
+  model_used?: string;
   items: ScannedFoodItem[];
   totals: MacroTotals;
   healthier_alternatives: HealthierAlternative[];
@@ -186,6 +259,20 @@ export interface DailyMacroTargets {
 export interface ScanSession {
   imagePreviewUrl: string | null;
   fileName: string | null;
+  foodName: string;
+  foodDescription: string;
+  estimatedPortion: EstimatedPortion;
+  portionConfidence: "high" | "medium" | "low";
+  confidence: "high" | "medium" | "low";
+  ingredients: AnalyzedIngredient[];
+  initialIngredientGrams: Record<string, number>;
+  fibre: number;
+  sugar: number;
+  sodiumMg: number;
+  otherNutrients: NutrientDetailMetric[];
+  dataSources: string[];
+  analysisLimitations: string[];
+  modelUsed?: string;
   items: EditableFoodItem[];
   totals: MacroTotals;
   alternatives: HealthierAlternative[];

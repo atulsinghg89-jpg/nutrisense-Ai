@@ -4,7 +4,8 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Generator
+import tempfile
+from typing import Generator, Literal
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile, status
@@ -17,28 +18,25 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text, create_engine, func, select, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, relationship, sessionmaker
 
+from nutrition_db import resolve_ingredient_nutrition
+
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 
 logger = logging.getLogger("nutrisense")
 
 MAX_IMAGE_BYTES = 20 * 1024 * 1024  # 20 MB
+FILES_API_THRESHOLD_BYTES = 10 * 1024 * 1024  # Use Gemini Files API cleanly for >10 MB uploads
 SUPPORTED_IMAGE_MIME_TYPES = {
     "image/jpeg",
     "image/png",
     "image/webp",
-    "image/gif",
-    "image/heic",
-    "image/heif",
 }
 EXTENSION_MIME_MAP = {
     ".jpg": "image/jpeg",
     ".jpeg": "image/jpeg",
     ".png": "image/png",
     ".webp": "image/webp",
-    ".gif": "image/gif",
-    ".heic": "image/heic",
-    ".heif": "image/heif",
 }
 
 
@@ -56,9 +54,17 @@ if not RAW_DATABASE_URL:
     raise RuntimeError("DATABASE_URL environment variable is not set.")
 
 DATABASE_URL = _normalize_database_url(RAW_DATABASE_URL)
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.6-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.1-flash-lite")
 GEMINI_FALLBACK_MODELS = list(
-    dict.fromkeys([GEMINI_MODEL, "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.8-flash", "gemini-3.7-flash"])
+    dict.fromkeys([
+        GEMINI_MODEL,
+        "gemini-3.1-flash-lite",
+        "gemini-3.5-flash-lite",
+        "gemini-3.5-flash",
+        "gemini-3.7-flash",
+        "gemini-3.6-flash",
+        "gemini-3.8-flash",
+    ])
 )
 
 engine = create_engine(
@@ -152,6 +158,62 @@ class ScannedFoodItem(FoodItemMacros):
     protein_per_100g: float = Field(..., ge=0)
     carbs_per_100g: float = Field(..., ge=0)
     fats_per_100g: float = Field(..., ge=0)
+    fibre_per_100g: float = Field(default=0.0, ge=0)
+    sugar_per_100g: float = Field(default=0.0, ge=0)
+    sodium_mg_per_100g: float = Field(default=0.0, ge=0)
+    fibre: float = Field(default=0.0, ge=0)
+    sugar: float = Field(default=0.0, ge=0)
+    sodium_mg: float = Field(default=0.0, ge=0)
+    source_type: Literal["icmr_nin", "usda_fdc", "unmatched"] = "icmr_nin"
+    source_label: str = "ICMR–NIN / USDA Reference"
+    confident: bool = True
+    needs_confirmation: bool = False
+    uncertainty_reason: str | None = None
+
+
+class EstimatedPortion(BaseModel):
+    amount: float = Field(..., ge=0)
+    unit: str = "g"
+    label: str
+
+
+class AnalyzedIngredient(BaseModel):
+    id: str
+    name: str
+    canonical_match: str | None = None
+    estimated_grams: float = Field(..., ge=0)
+    unit: str = "g"
+    confident: bool = True
+    needs_confirmation: bool = False
+    confirmed_by_user: bool = False
+    uncertainty_reason: str | None = None
+    source_type: Literal["icmr_nin", "usda_fdc", "unmatched"]
+    source_label: str
+    calories: float = Field(..., ge=0)
+    protein: float = Field(..., ge=0)
+    carbohydrates: float = Field(..., ge=0)
+    fats: float = Field(..., ge=0)
+    fibre: float = Field(default=0.0, ge=0)
+    sugar: float = Field(default=0.0, ge=0)
+    sodium_mg: float = Field(default=0.0, ge=0)
+    calories_per_100g: float = Field(default=0.0, ge=0)
+    protein_per_100g: float = Field(default=0.0, ge=0)
+    carbs_per_100g: float = Field(default=0.0, ge=0)
+    fats_per_100g: float = Field(default=0.0, ge=0)
+    fibre_per_100g: float = Field(default=0.0, ge=0)
+    sugar_per_100g: float = Field(default=0.0, ge=0)
+    sodium_mg_per_100g: float = Field(default=0.0, ge=0)
+    calcium_mg: float = Field(default=0.0, ge=0)
+    iron_mg: float = Field(default=0.0, ge=0)
+    vitamin_c_mg: float = Field(default=0.0, ge=0)
+    potassium_mg: float = Field(default=0.0, ge=0)
+
+
+class NutrientDetailMetric(BaseModel):
+    name: str
+    amount: float = Field(..., ge=0)
+    unit: str
+    source: str
 
 
 class HealthierAlternative(BaseModel):
@@ -165,18 +227,39 @@ class HealthierAlternative(BaseModel):
 
 
 class ScanResponse(BaseModel):
+    food_name: str
+    food_description: str
+    ingredients: list[AnalyzedIngredient]
+    estimated_portion: EstimatedPortion
+    portion_confidence: Literal["high", "medium", "low"]
+    calories: float = Field(..., ge=0)
+    protein: float = Field(..., ge=0)
+    carbohydrates: float = Field(..., ge=0)
+    fats: float = Field(..., ge=0)
+    fibre: float = Field(..., ge=0)
+    sugar: float = Field(..., ge=0)
+    sodium: NutrientDetailMetric
+    other_available_nutrients: list[NutrientDetailMetric]
+    confidence: Literal["high", "medium", "low"]
+    data_sources: list[str]
+    analysis_limitations: list[str]
+    model_used: str
     items: list[ScannedFoodItem]
     totals: MacroTotals
     healthier_alternatives: list[HealthierAlternative]
 
 
-class GeminiFoodItem(BaseModel):
-    name: str = Field(..., description="Specific name of the detected food item")
-    portion_grams: float = Field(..., description="Estimated default portion size in grams (positive number)")
-    calories: float = Field(..., description="Estimated calories (kcal) for this portion")
-    protein: float = Field(..., description="Estimated protein in grams for this portion")
-    carbs: float = Field(..., description="Estimated carbohydrates in grams for this portion")
-    fats: float = Field(..., description="Estimated fats in grams for this portion")
+class GeminiDetectedIngredient(BaseModel):
+    name: str = Field(..., description="Ingredient name (e.g. Noodles, Tomato, Paneer, Cooking Oil, Possible Soy Sauce)")
+    estimated_grams: float = Field(..., description="Estimated weight in grams for this ingredient in the meal")
+    confident: bool = Field(
+        ...,
+        description="False for hidden/uncertain ingredients like cooking oils, butter, ghee, sauces, salt, or obscured items",
+    )
+    uncertainty_reason: str | None = Field(
+        default=None,
+        description="Short explanation when confident is False",
+    )
 
 
 class GeminiHealthierAlternative(BaseModel):
@@ -191,10 +274,20 @@ class GeminiHealthierAlternative(BaseModel):
 
 class GeminiVisionAnalysis(BaseModel):
     is_food: bool = Field(..., description="True if edible food or drinks are visible in the image")
-    items: list[GeminiFoodItem] = Field(..., description="Detected food items with portion sizes and macros")
+    food_name: str = Field(..., description="Primary identified dish or meal title")
+    food_description: str = Field(..., description="Concise 1-2 sentence objective description of what appears on the plate")
+    estimated_portion_grams: float = Field(..., description="Estimated total edible portion size in grams")
+    portion_confidence: Literal["high", "medium", "low"] = Field(
+        ...,
+        description="Visual certainty of the portion estimate",
+    )
+    ingredients: list[GeminiDetectedIngredient] = Field(
+        ...,
+        description="Individual visible or likely ingredients with estimated gram weights and certainty flags",
+    )
     healthier_alternatives: list[GeminiHealthierAlternative] = Field(
         ...,
-        description="Exactly 3 practical healthier food alternatives for the detected meal",
+        description="Exactly 3 practical healthier food alternatives tailored to the detected meal",
     )
 
 
@@ -205,11 +298,19 @@ class RecalculateItemInput(BaseModel):
     protein_per_100g: float | None = Field(default=None, ge=0)
     carbs_per_100g: float | None = Field(default=None, ge=0)
     fats_per_100g: float | None = Field(default=None, ge=0)
+    fibre_per_100g: float | None = Field(default=None, ge=0)
+    sugar_per_100g: float | None = Field(default=None, ge=0)
+    sodium_mg_per_100g: float | None = Field(default=None, ge=0)
     original_portion_grams: float | None = Field(default=None, gt=0)
     calories: float | None = Field(default=None, ge=0)
     protein: float | None = Field(default=None, ge=0)
     carbs: float | None = Field(default=None, ge=0)
     fats: float | None = Field(default=None, ge=0)
+    source_type: Literal["icmr_nin", "usda_fdc", "unmatched"] = "icmr_nin"
+    source_label: str = "ICMR–NIN / USDA Reference"
+    confident: bool = True
+    needs_confirmation: bool = False
+    uncertainty_reason: str | None = None
 
 
 class RecalculateRequest(BaseModel):
@@ -360,49 +461,60 @@ def _compute_totals(items: list[FoodItemMacros] | list[ScannedFoodItem]) -> Macr
     )
 
 
-def _detect_image_mime_type(upload: UploadFile, payload: bytes) -> str | None:
-    content_type = (upload.content_type or "").split(";")[0].strip().lower()
-    if content_type == "image/jpg":
-        content_type = "image/jpeg"
-    if content_type in SUPPORTED_IMAGE_MIME_TYPES:
-        return content_type
-
-    # Inspect common binary signatures when upload headers omit image MIME types.
+def _detect_validated_image_mime(upload: UploadFile, payload: bytes) -> str:
+    """Inspect binary file signatures to ensure actual MIME type is a valid JPG, PNG, or WEBP."""
+    actual_mime: str | None = None
     if payload.startswith(b"\xff\xd8\xff"):
-        return "image/jpeg"
-    if payload.startswith(b"\x89PNG\r\n\x1a\n"):
-        return "image/png"
-    if payload[:4] == b"RIFF" and payload[8:12] == b"WEBP":
-        return "image/webp"
-    if payload.startswith((b"GIF87a", b"GIF89a")):
-        return "image/gif"
+        actual_mime = "image/jpeg"
+    elif payload.startswith(b"\x89PNG\r\n\x1a\n"):
+        actual_mime = "image/png"
+    elif len(payload) >= 12 and payload[:4] == b"RIFF" and payload[8:12] == b"WEBP":
+        actual_mime = "image/webp"
+
+    if not actual_mime:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported or invalid image bytes. Upload a valid JPG, JPEG, PNG, or WEBP image.",
+        )
+
+    declared_type = (upload.content_type or "").split(";")[0].strip().lower()
+    if declared_type == "image/jpg":
+        declared_type = "image/jpeg"
+    if declared_type.startswith("image/") and declared_type != actual_mime:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"MIME type mismatch: uploaded file bytes are {actual_mime}, "
+                f"but header declared {declared_type}."
+            ),
+        )
 
     suffix = Path(upload.filename or "").suffix.lower()
-    return EXTENSION_MIME_MAP.get(suffix)
+    if suffix and suffix in EXTENSION_MIME_MAP and EXTENSION_MIME_MAP[suffix] != actual_mime:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"File extension '{suffix}' does not match actual image format ({actual_mime})."
+            ),
+        )
 
-
-def _to_scanned_item(item: GeminiFoodItem) -> ScannedFoodItem:
-    portion_grams = max(float(item.portion_grams), 1.0)
-    calories = max(float(item.calories), 0.0)
-    protein = max(float(item.protein), 0.0)
-    carbs = max(float(item.carbs), 0.0)
-    fats = max(float(item.fats), 0.0)
-    factor = 100.0 / portion_grams
-    return ScannedFoodItem(
-        name=item.name.strip() or "Unknown Food",
-        portion_grams=_round2(portion_grams),
-        calories=_round2(calories),
-        protein=_round2(protein),
-        carbs=_round2(carbs),
-        fats=_round2(fats),
-        calories_per_100g=_round2(calories * factor),
-        protein_per_100g=_round2(protein * factor),
-        carbs_per_100g=_round2(carbs * factor),
-        fats_per_100g=_round2(fats * factor),
-    )
+    return actual_mime
 
 
 def _to_healthier_alternative(alt: GeminiHealthierAlternative) -> HealthierAlternative:
+    alt_db = resolve_ingredient_nutrition(alt.name, use_live_usda=False)
+    if alt_db is not None:
+        # Ground swap macros to 150g standard serving from DB if available, otherwise keep estimate
+        factor = 1.5
+        return HealthierAlternative(
+            name=alt.name.strip(),
+            replaces=alt.replaces.strip(),
+            reason=alt.reason.strip(),
+            estimated_calories=_round2(alt_db.calories * factor),
+            protein=_round2(alt_db.protein * factor),
+            carbs=_round2(alt_db.carbohydrates * factor),
+            fats=_round2(alt_db.fats * factor),
+        )
     return HealthierAlternative(
         name=alt.name.strip(),
         replaces=alt.replaces.strip(),
@@ -423,6 +535,9 @@ def _recalculate_single_item(item: RecalculateItemInput) -> ScannedFoodItem:
     )
     if all(value is not None for value in per_100g_fields):
         factor = item.portion_grams / 100.0
+        fibre_100 = float(item.fibre_per_100g or 0.0)
+        sugar_100 = float(item.sugar_per_100g or 0.0)
+        sodium_100 = float(item.sodium_mg_per_100g or 0.0)
         return ScannedFoodItem(
             name=item.name.strip(),
             portion_grams=_round2(item.portion_grams),
@@ -434,6 +549,17 @@ def _recalculate_single_item(item: RecalculateItemInput) -> ScannedFoodItem:
             protein_per_100g=_round2(item.protein_per_100g),
             carbs_per_100g=_round2(item.carbs_per_100g),
             fats_per_100g=_round2(item.fats_per_100g),
+            fibre_per_100g=_round2(fibre_100),
+            sugar_per_100g=_round2(sugar_100),
+            sodium_mg_per_100g=_round2(sodium_100),
+            fibre=_round2(fibre_100 * factor),
+            sugar=_round2(sugar_100 * factor),
+            sodium_mg=_round2(sodium_100 * factor),
+            source_type=item.source_type,
+            source_label=item.source_label,
+            confident=item.confident,
+            needs_confirmation=item.needs_confirmation,
+            uncertainty_reason=item.uncertainty_reason,
         )
 
     baseline_fields = (
@@ -468,7 +594,7 @@ def _recalculate_single_item(item: RecalculateItemInput) -> ScannedFoodItem:
     )
 
 
-def _analyze_food_with_gemini(image_bytes: bytes, mime_type: str) -> GeminiVisionAnalysis:
+def _analyze_food_with_gemini(image_bytes: bytes, mime_type: str) -> tuple[GeminiVisionAnalysis, str]:
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
         raise HTTPException(
@@ -477,51 +603,87 @@ def _analyze_food_with_gemini(image_bytes: bytes, mime_type: str) -> GeminiVisio
         )
 
     prompt = (
-        "Analyze this meal image as a clinical nutritionist. "
-        "Identify every distinct food or beverage item visible on the plate or table, "
-        "estimate a realistic default portion size in grams for each item, and estimate "
-        "calories (kcal), protein (g), carbs (g), and fats (g) for that portion. "
-        "Also provide exactly 3 practical healthier food alternatives tailored to this meal "
-        "(what each replaces, why it is healthier, and its estimated macros for an equivalent serving). "
-        "If no food or drink is present in the image, set is_food to false and items to an empty list."
+        "Analyze this meal photograph as an experienced culinary & Indian nutrition specialist. "
+        "1. Determine if edible food or beverages are clearly visible (`is_food`). If NOT food, set `is_food` to false and `ingredients` to []. "
+        "2. Identify `food_name` (concise primary dish name) and `food_description` (1–2 sentences describing the dish and cooking style). "
+        "3. Estimate total serving weight (`estimated_portion_grams`) and visual `portion_confidence` (`high`, `medium`, or `low`). "
+        "4. Break down EVERY distinct visible or likely culinary ingredient in `ingredients` (including staples like whole wheat roti, rice, dal, paneer, noodles, vegetables, AND likely hidden/uncertain ingredients like cooking oil, ghee, sauces, salt, or cheese with `confident=false` and a clear `uncertainty_reason`). "
+        "Do NOT calculate or guess nutrition tables per ingredient—focus ONLY on accurate food & ingredient recognition and gram estimates. "
+        "5. Suggest 3 practical healthier alternatives tailored to this meal."
     )
 
-    client = genai.Client(api_key=api_key)
+    client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=35000))
     last_error: Exception | None = None
-    response = None
+    last_code: int | None = None
+    uploaded_file_ref = None
+    temp_file_path: str | None = None
 
-    for model_name in GEMINI_FALLBACK_MODELS:
-        try:
-            response = client.models.generate_content(
-                model=model_name,
-                contents=[
-                    types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-                    prompt,
-                ],
-                config=types.GenerateContentConfig(
-                    temperature=0.2,
-                    response_mime_type="application/json",
-                    response_schema=GeminiVisionAnalysis,
-                ),
+    try:
+        if len(image_bytes) > FILES_API_THRESHOLD_BYTES:
+            suffix = {"image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp"}.get(mime_type, ".jpg")
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                tmp.write(image_bytes)
+                temp_file_path = tmp.name
+            uploaded_file_ref = client.files.upload(
+                file=temp_file_path,
+                config={"mime_type": mime_type},
             )
-            break
-        except genai_errors.APIError as exc:
-            last_error = exc
-            if exc.code in {404, 429, 503}:
-                logger.warning("Gemini model %s unavailable (%s); trying fallback", model_name, exc.code)
+            content_part = uploaded_file_ref
+        else:
+            content_part = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
+
+        for model_name in GEMINI_FALLBACK_MODELS:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=[content_part, prompt],
+                    config=types.GenerateContentConfig(
+                        temperature=0.2,
+                        response_mime_type="application/json",
+                        response_schema=GeminiVisionAnalysis,
+                    ),
+                )
+                if isinstance(response.parsed, GeminiVisionAnalysis):
+                    return response.parsed, model_name
+                if response.text:
+                    return GeminiVisionAnalysis.model_validate(json.loads(response.text)), model_name
+                logger.warning("Gemini model %s returned empty payload; trying next model", model_name)
                 continue
-            raise
+            except genai_errors.APIError as exc:
+                last_error = exc
+                last_code = exc.code
+                if exc.code in {400, 403, 404, 429, 500, 503, 504}:
+                    logger.warning("Gemini model %s unavailable (%s); trying fallback", model_name, exc.code)
+                    continue
+                raise
+            except json.JSONDecodeError as exc:
+                last_error = exc
+                logger.warning("Gemini model %s returned non-JSON output; trying fallback", model_name)
+                continue
+    finally:
+        if uploaded_file_ref is not None and getattr(uploaded_file_ref, "name", None):
+            try:
+                client.files.delete(name=uploaded_file_ref.name)
+            except Exception:
+                pass
+        if temp_file_path and os.path.exists(temp_file_path):
+            try:
+                os.unlink(temp_file_path)
+            except OSError:
+                pass
 
-    if response is None:
-        raise last_error or ValueError("All Gemini vision models failed.")
+    if last_code == 429:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Gemini Vision API quota/rate limit reached right now. Please wait a few seconds and retry.",
+        )
+    if last_code in {503, 504}:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Gemini Vision models are temporarily overloaded. Please retry shortly.",
+        )
 
-    if isinstance(response.parsed, GeminiVisionAnalysis):
-        return response.parsed
-
-    if response.text:
-        return GeminiVisionAnalysis.model_validate(json.loads(response.text))
-
-    raise ValueError("Gemini returned an empty response.")
+    raise last_error or ValueError("All Gemini vision models failed.")
 
 
 @asynccontextmanager
@@ -561,9 +723,243 @@ def health_check(db: Session = Depends(get_db)) -> HealthResponse:
     return HealthResponse(status="ok", database="connected")
 
 
+def _build_hybrid_scan_response(
+    analysis: GeminiVisionAnalysis,
+    model_used: str,
+) -> ScanResponse:
+    analyzed_ingredients: list[AnalyzedIngredient] = []
+    scanned_items: list[ScannedFoodItem] = []
+    used_sources: list[str] = ["Google Gemini Vision (Food & Ingredient Identification)"]
+
+    total_fibre = 0.0
+    total_sugar = 0.0
+    total_sodium = 0.0
+    total_calcium = 0.0
+    total_iron = 0.0
+    total_vit_c = 0.0
+    total_potassium = 0.0
+    unverified_count = 0
+    uncertain_visual_count = 0
+
+    for idx, raw_ing in enumerate(analysis.ingredients):
+        grams = max(float(raw_ing.estimated_grams), 1.0)
+        factor = grams / 100.0
+        db_match = resolve_ingredient_nutrition(raw_ing.name, use_live_usda=True)
+
+        if db_match is not None:
+            cal = _round2(db_match.calories * factor)
+            pro = _round2(db_match.protein * factor)
+            carb = _round2(db_match.carbohydrates * factor)
+            fat = _round2(db_match.fats * factor)
+            fib = _round2(db_match.fibre * factor)
+            sug = _round2(db_match.sugar * factor)
+            sod = _round2(db_match.sodium_mg * factor)
+            ca = _round2(db_match.calcium_mg * factor)
+            fe = _round2(db_match.iron_mg * factor)
+            vc = _round2(db_match.vitamin_c_mg * factor)
+            k = _round2(db_match.potassium_mg * factor)
+
+            source_type = db_match.source_type
+            source_label = db_match.source_label
+            canonical_match = db_match.canonical_name
+            cal_100, pro_100, carb_100, fat_100 = (
+                db_match.calories,
+                db_match.protein,
+                db_match.carbohydrates,
+                db_match.fats,
+            )
+            fib_100, sug_100, sod_100 = db_match.fibre, db_match.sugar, db_match.sodium_mg
+            needs_conf = not raw_ing.confident
+            reason = raw_ing.uncertainty_reason
+            if not raw_ing.confident and not reason:
+                reason = "Hidden or variable culinary quantity; confirm estimated grams."
+            if db_match.source_type == "icmr_nin":
+                src_credit = "ICMR–NIN Indian Food Composition Tables (IFCT 2017)"
+            else:
+                src_credit = "USDA FoodData Central (CC0 1.0)"
+            if src_credit not in used_sources:
+                used_sources.append(src_credit)
+        else:
+            cal = pro = carb = fat = fib = sug = sod = ca = fe = vc = k = 0.0
+            cal_100 = pro_100 = carb_100 = fat_100 = fib_100 = sug_100 = sod_100 = 0.0
+            source_type = "unmatched"
+            source_label = "Not matched in ICMR–NIN / USDA — Confirm Needed"
+            canonical_match = None
+            needs_conf = True
+            unverified_count += 1
+            reason = raw_ing.uncertainty_reason or (
+                "No verified nutrition database entry found; values left uncomputed rather than guessed."
+            )
+
+        if not raw_ing.confident:
+            uncertain_visual_count += 1
+
+        total_fibre += fib
+        total_sugar += sug
+        total_sodium += sod
+        total_calcium += ca
+        total_iron += fe
+        total_vit_c += vc
+        total_potassium += k
+
+        ing_id = f"ing-{idx + 1}"
+        analyzed_ingredients.append(
+            AnalyzedIngredient(
+                id=ing_id,
+                name=raw_ing.name.strip() or f"Ingredient {idx + 1}",
+                canonical_match=canonical_match,
+                estimated_grams=_round2(grams),
+                unit="g",
+                confident=raw_ing.confident and source_type != "unmatched",
+                needs_confirmation=needs_conf,
+                confirmed_by_user=False,
+                uncertainty_reason=reason,
+                source_type=source_type,
+                source_label=source_label,
+                calories=cal,
+                protein=pro,
+                carbohydrates=carb,
+                fats=fat,
+                fibre=fib,
+                sugar=sug,
+                sodium_mg=sod,
+                calories_per_100g=_round2(cal_100),
+                protein_per_100g=_round2(pro_100),
+                carbs_per_100g=_round2(carb_100),
+                fats_per_100g=_round2(fat_100),
+                fibre_per_100g=_round2(fib_100),
+                sugar_per_100g=_round2(sug_100),
+                sodium_mg_per_100g=_round2(sod_100),
+                calcium_mg=ca,
+                iron_mg=fe,
+                vitamin_c_mg=vc,
+                potassium_mg=k,
+            )
+        )
+
+        scanned_items.append(
+            ScannedFoodItem(
+                name=raw_ing.name.strip() or f"Ingredient {idx + 1}",
+                portion_grams=_round2(grams),
+                calories=cal,
+                protein=pro,
+                carbs=carb,
+                fats=fat,
+                calories_per_100g=_round2(cal_100),
+                protein_per_100g=_round2(pro_100),
+                carbs_per_100g=_round2(carb_100),
+                fats_per_100g=_round2(fat_100),
+                fibre_per_100g=_round2(fib_100),
+                sugar_per_100g=_round2(sug_100),
+                sodium_mg_per_100g=_round2(sod_100),
+                fibre=fib,
+                sugar=sug,
+                sodium_mg=sod,
+                source_type=source_type,
+                source_label=source_label,
+                confident=raw_ing.confident and source_type != "unmatched",
+                needs_confirmation=needs_conf,
+                uncertainty_reason=reason,
+            )
+        )
+
+    totals = _compute_totals(scanned_items)
+    sum_grams = totals.portion_grams or _round2(max(float(analysis.estimated_portion_grams), 1.0))
+
+    other_nutrients: list[NutrientDetailMetric] = []
+    if total_calcium > 0:
+        other_nutrients.append(
+            NutrientDetailMetric(
+                name="Calcium",
+                amount=_round2(total_calcium),
+                unit="mg",
+                source="ICMR–NIN / USDA per-100g tables",
+            )
+        )
+    if total_iron > 0:
+        other_nutrients.append(
+            NutrientDetailMetric(
+                name="Iron",
+                amount=_round2(total_iron),
+                unit="mg",
+                source="ICMR–NIN / USDA per-100g tables",
+            )
+        )
+    if total_vit_c > 0:
+        other_nutrients.append(
+            NutrientDetailMetric(
+                name="Vitamin C",
+                amount=_round2(total_vit_c),
+                unit="mg",
+                source="ICMR–NIN / USDA per-100g tables",
+            )
+        )
+    if total_potassium > 0:
+        other_nutrients.append(
+            NutrientDetailMetric(
+                name="Potassium",
+                amount=_round2(total_potassium),
+                unit="mg",
+                source="ICMR–NIN / USDA per-100g tables",
+            )
+        )
+
+    overall_confidence: Literal["high", "medium", "low"] = analysis.portion_confidence
+    if unverified_count > 0 or uncertain_visual_count >= 2:
+        overall_confidence = "low" if analysis.portion_confidence != "high" else "medium"
+
+    limitations = [
+        "Portion weights are visual estimates from a single 2D photograph and are not laboratory measurements.",
+        "Macronutrients and micronutrients are computed strictly from ICMR–NIN IFCT 2017 and USDA FoodData Central per-100g tables multiplied by estimated grams.",
+    ]
+    if uncertain_visual_count > 0:
+        limitations.append(
+            f"{uncertain_visual_count} ingredient(s) (such as cooking oil, sauces, or obscured garnishes) have uncertain visual quantities — confirm or adjust sliders below."
+        )
+    if unverified_count > 0:
+        limitations.append(
+            f"{unverified_count} detected ingredient(s) lacked an exact database match and were left at 0 kcal rather than guessed."
+        )
+
+    alternatives = [_to_healthier_alternative(alt) for alt in analysis.healthier_alternatives[:3]]
+
+    return ScanResponse(
+        food_name=analysis.food_name.strip() or "Analyzed Meal",
+        food_description=analysis.food_description.strip()
+        or "Identified meal decomposed into database-backed ingredients.",
+        ingredients=analyzed_ingredients,
+        estimated_portion=EstimatedPortion(
+            amount=_round2(sum_grams),
+            unit="g",
+            label=f"~{round(sum_grams)} g estimated serving",
+        ),
+        portion_confidence=analysis.portion_confidence,
+        calories=totals.calories,
+        protein=totals.protein,
+        carbohydrates=totals.carbs,
+        fats=totals.fats,
+        fibre=_round2(total_fibre),
+        sugar=_round2(total_sugar),
+        sodium=NutrientDetailMetric(
+            name="Sodium",
+            amount=_round2(total_sodium),
+            unit="mg",
+            source="ICMR–NIN / USDA per-100g tables",
+        ),
+        other_available_nutrients=other_nutrients,
+        confidence=overall_confidence,
+        data_sources=used_sources,
+        analysis_limitations=limitations,
+        model_used=model_used,
+        items=scanned_items,
+        totals=totals,
+        healthier_alternatives=alternatives,
+    )
+
+
 @app.post("/api/scan", response_model=ScanResponse, tags=["Food Analysis"])
 async def scan_food_image(file: UploadFile = File(..., description="Food image file")) -> ScanResponse:
-    """Analyze an uploaded food image using Gemini Vision and suggest 3 healthier alternatives."""
+    """Analyze an uploaded food image using Gemini Vision + ICMR–NIN/USDA databases."""
     image_bytes = await file.read()
     if not image_bytes:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded image file is empty.")
@@ -573,38 +969,84 @@ async def scan_food_image(file: UploadFile = File(..., description="Food image f
             detail="Image exceeds the 20 MB upload limit.",
         )
 
-    mime_type = _detect_image_mime_type(file, image_bytes)
-    if not mime_type:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported file type. Upload a JPEG, PNG, WEBP, GIF, or HEIC image.",
-        )
+    mime_type = _detect_validated_image_mime(file, image_bytes)
 
     try:
-        analysis = await run_in_threadpool(_analyze_food_with_gemini, image_bytes, mime_type)
+        analysis, model_used = await run_in_threadpool(_analyze_food_with_gemini, image_bytes, mime_type)
     except HTTPException:
         raise
     except Exception as exc:
         logger.exception("Gemini Vision food scan failed")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Failed to analyze food image with Gemini Vision.",
+            detail=f"Gemini Vision analysis error: {str(exc)[:180]}",
         ) from exc
 
-    if not analysis.is_food or not analysis.items:
+    if not analysis.is_food or not analysis.ingredients:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
-            detail="No food items were detected in the uploaded image.",
+            detail="No edible food items were detected in the uploaded image. Try a clearer well-lit photo.",
         )
 
-    scanned_items = [_to_scanned_item(item) for item in analysis.items]
-    totals = _compute_totals(scanned_items)
-    alternatives = [_to_healthier_alternative(alt) for alt in analysis.healthier_alternatives[:3]]
+    return await run_in_threadpool(_build_hybrid_scan_response, analysis, model_used)
 
-    return ScanResponse(
-        items=scanned_items,
-        totals=totals,
-        healthier_alternatives=alternatives,
+
+class LookupIngredientResponse(BaseModel):
+    found: bool
+    ingredient: AnalyzedIngredient | None = None
+    message: str
+
+
+@app.get("/api/lookup-ingredient", response_model=LookupIngredientResponse, tags=["Food Analysis"])
+def lookup_ingredient_endpoint(
+    name: str = Query(..., min_length=2, max_length=120, description="Ingredient name to look up"),
+    grams: float = Query(default=100.0, gt=0, le=5000, description="Serving weight in grams"),
+) -> LookupIngredientResponse:
+    """Look up an ingredient in ICMR–NIN IFCT 2017 and USDA FoodData Central."""
+    db_match = resolve_ingredient_nutrition(name, use_live_usda=True)
+    if db_match is None:
+        return LookupIngredientResponse(
+            found=False,
+            ingredient=None,
+            message=f"No verified match found for '{name.strip()}' in ICMR–NIN or USDA FoodData Central.",
+        )
+
+    factor = grams / 100.0
+    ingredient = AnalyzedIngredient(
+        id=f"lookup-{abs(hash(name.strip().lower())) % 100000}",
+        name=name.strip(),
+        canonical_match=db_match.canonical_name,
+        estimated_grams=_round2(grams),
+        unit="g",
+        confident=True,
+        needs_confirmation=False,
+        confirmed_by_user=True,
+        uncertainty_reason=None,
+        source_type=db_match.source_type,
+        source_label=db_match.source_label,
+        calories=_round2(db_match.calories * factor),
+        protein=_round2(db_match.protein * factor),
+        carbohydrates=_round2(db_match.carbohydrates * factor),
+        fats=_round2(db_match.fats * factor),
+        fibre=_round2(db_match.fibre * factor),
+        sugar=_round2(db_match.sugar * factor),
+        sodium_mg=_round2(db_match.sodium_mg * factor),
+        calories_per_100g=_round2(db_match.calories),
+        protein_per_100g=_round2(db_match.protein),
+        carbs_per_100g=_round2(db_match.carbohydrates),
+        fats_per_100g=_round2(db_match.fats),
+        fibre_per_100g=_round2(db_match.fibre),
+        sugar_per_100g=_round2(db_match.sugar),
+        sodium_mg_per_100g=_round2(db_match.sodium_mg),
+        calcium_mg=_round2(db_match.calcium_mg * factor),
+        iron_mg=_round2(db_match.iron_mg * factor),
+        vitamin_c_mg=_round2(db_match.vitamin_c_mg * factor),
+        potassium_mg=_round2(db_match.potassium_mg * factor),
+    )
+    return LookupIngredientResponse(
+        found=True,
+        ingredient=ingredient,
+        message=f"Matched '{db_match.canonical_name}' from {db_match.source_label}.",
     )
 
 

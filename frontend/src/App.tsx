@@ -99,9 +99,36 @@ function loadStoredScan(): ScanSession | null {
   try {
     const raw = localStorage.getItem(SCAN_STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as ScanSession;
-    if (Array.isArray(parsed.items) && Array.isArray(parsed.alternatives)) {
-      return { ...parsed, imagePreviewUrl: null };
+    const parsed = JSON.parse(raw) as Partial<ScanSession>;
+    if (Array.isArray(parsed.items) && Array.isArray(parsed.alternatives) && parsed.totals) {
+      return {
+        imagePreviewUrl: parsed.imagePreviewUrl ?? null,
+        fileName: parsed.fileName ?? null,
+        foodName: parsed.foodName || parsed.items.slice(0, 2).map((i) => i.name).join(" & ") || "Scanned Meal",
+        foodDescription: parsed.foodDescription || "Detected meal breakdown from recent scan.",
+        estimatedPortion: parsed.estimatedPortion ?? {
+          amount: parsed.totals.portion_grams,
+          unit: "g",
+          label: `~${Math.round(parsed.totals.portion_grams)} g estimated serving`,
+        },
+        portionConfidence: parsed.portionConfidence ?? "medium",
+        confidence: parsed.confidence ?? "medium",
+        ingredients: parsed.ingredients ?? [],
+        initialIngredientGrams: parsed.initialIngredientGrams ?? {},
+        fibre: parsed.fibre ?? 0,
+        sugar: parsed.sugar ?? 0,
+        sodiumMg: parsed.sodiumMg ?? 0,
+        otherNutrients: parsed.otherNutrients ?? [],
+        dataSources: parsed.dataSources ?? ["Google Gemini Vision", "ICMR–NIN / USDA Tables"],
+        analysisLimitations: parsed.analysisLimitations ?? [
+          "Portion sizes are visual estimates from a 2D meal image.",
+        ],
+        modelUsed: parsed.modelUsed,
+        items: parsed.items,
+        totals: parsed.totals,
+        alternatives: parsed.alternatives,
+        scannedAt: parsed.scannedAt ?? new Date().toISOString(),
+      };
     }
     return null;
   } catch {
@@ -217,11 +244,15 @@ export function App() {
     handleNavigate("dashboard");
   }, [handleNavigate]);
 
-  const persistScanWithoutLargeBlob = useCallback((session: ScanSession) => {
+  const persistScanSession = useCallback((session: ScanSession) => {
     try {
+      const keepPreview =
+        session.imagePreviewUrl && session.imagePreviewUrl.length <= 220_000
+          ? session.imagePreviewUrl
+          : null;
       const compact: ScanSession = {
         ...session,
-        imagePreviewUrl: null,
+        imagePreviewUrl: keepPreview,
       };
       localStorage.setItem(SCAN_STORAGE_KEY, JSON.stringify(compact));
     } catch {
@@ -232,14 +263,20 @@ export function App() {
   const handleScanComplete = useCallback(
     (session: ScanSession) => {
       setScanSession(session);
-      persistScanWithoutLargeBlob(session);
+      persistScanSession(session);
       showToast(
-        `AI Scan Complete: ${session.items.length} ${
-          session.items.length === 1 ? "item" : "items"
-        } detected (${Math.round(session.totals.calories)} kcal est.)`,
+        `AI Scan Complete: ${session.foodName} (${Math.round(session.totals.calories)} kcal est.)`,
       );
     },
-    [persistScanWithoutLargeBlob, showToast],
+    [persistScanSession, showToast],
+  );
+
+  const handleUpdateSession = useCallback(
+    (nextSession: ScanSession) => {
+      setScanSession(nextSession);
+      persistScanSession(nextSession);
+    },
+    [persistScanSession],
   );
 
   const handleUpdateItems = useCallback(
@@ -247,11 +284,11 @@ export function App() {
       setScanSession((prev) => {
         if (!prev) return prev;
         const next = { ...prev, items, totals };
-        persistScanWithoutLargeBlob(next);
+        persistScanSession(next);
         return next;
       });
     },
-    [persistScanWithoutLargeBlob],
+    [persistScanSession],
   );
 
   const handleUpdateTargets = useCallback(
@@ -336,6 +373,7 @@ export function App() {
                 <ScannerView
                   scanSession={scanSession}
                   onScanComplete={handleScanComplete}
+                  onUpdateSession={handleUpdateSession}
                   onUpdateItems={handleUpdateItems}
                   dailyTargets={dailyTargets}
                   onNavigate={handleNavigate}
