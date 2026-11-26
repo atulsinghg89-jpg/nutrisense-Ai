@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { CircuitLines } from "../components/CircuitLines";
+import { DoshaSection } from "../components/dosha/DoshaSection";
 import { FloatingFoodIngredients } from "../components/FloatingFoodIngredients";
 import { HumanCategorySelector } from "../components/HumanSelectionCards";
 import { MacroProgressBars } from "../components/MacroProgressBars";
@@ -40,6 +41,7 @@ import {
 } from "../components/MotionPrimitives";
 import { ScrollTimeline } from "../components/ScrollTimeline";
 import type { NutritionCategoryGuide } from "../data/categories";
+import type { DoshaId } from "../data/doshas";
 import type {
   AppView,
   DailyMacroTargets,
@@ -50,6 +52,7 @@ import type {
 interface HomeViewProps {
   onNavigate: (view: AppView) => void;
   onSelectCategory?: (categoryId: NutritionCategoryGuide["id"]) => void;
+  onOpenDosha?: (doshaId: DoshaId) => void;
   onOpenDashboardGoals: () => void;
   onOpenAssistant: () => void;
   onOpenOnboarding: () => void;
@@ -125,6 +128,7 @@ const BENEFITS = [
 export function HomeView({
   onNavigate,
   onSelectCategory,
+  onOpenDosha,
   onOpenDashboardGoals,
   onOpenAssistant,
   onOpenOnboarding,
@@ -615,6 +619,15 @@ export function HomeView({
         onOpenAssistant={onOpenAssistant}
         todaySummary={todaySummary}
         dailyTargets={dailyTargets}
+      />
+
+      {/* 2.5 Ayurvedic Dosha Experience ("Discover Your Rhythm" immediately after Four Chapters) */}
+      <DoshaSection
+        onOpenDosha={(doshaId) => {
+          if (onOpenDosha) {
+            onOpenDosha(doshaId);
+          }
+        }}
       />
 
       {/* 3. Live Nutrition Preview (Actual Application State & PostgreSQL Data) */}

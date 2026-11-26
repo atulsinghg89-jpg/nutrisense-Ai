@@ -7,7 +7,8 @@ export type AppView =
   | "planner"
   | "indian-foods"
   | "grocery"
-  | "budget";
+  | "budget"
+  | "dosha";
 
 export interface ChatMessage {
   id: string;

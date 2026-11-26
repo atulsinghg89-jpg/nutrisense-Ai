@@ -7,6 +7,7 @@ import { NutriAssistantDrawer } from "./components/NutriAssistantDrawer";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { Preloader } from "./components/Preloader";
 import type { NutritionCategoryGuide } from "./data/categories";
+import type { DoshaId } from "./data/doshas";
 import { checkBackendHealth, fetchMealLogs, round2 } from "./lib/api";
 import { loadUserProfile, saveUserProfile } from "./lib/nutritionMath";
 import type {
@@ -22,6 +23,7 @@ import { AlternativesView } from "./views/AlternativesView";
 import { BudgetNutritionView } from "./views/BudgetNutritionView";
 import { CategoriesView } from "./views/CategoriesView";
 import { DashboardView } from "./views/DashboardView";
+import { DoshaDetailView } from "./views/DoshaDetailView";
 import { GroceryListView } from "./views/GroceryListView";
 import { HomeView } from "./views/HomeView";
 import { IndianFoodsView } from "./views/IndianFoodsView";
@@ -61,8 +63,23 @@ function isSameLocalDay(isoString: string, targetYmd: string): boolean {
   return formatLocalYMD(parsed) === targetYmd;
 }
 
+function readInitialDoshaFromHash(): DoshaId {
+  const hash = window.location.hash.replace("#", "").toLowerCase();
+  if (hash === "dosha-pitta") return "pitta";
+  if (hash === "dosha-kapha") return "kapha";
+  return "vata";
+}
+
 function readInitialViewFromHash(): AppView {
   const hash = window.location.hash.replace("#", "").toLowerCase();
+  if (
+    hash === "dosha" ||
+    hash === "dosha-vata" ||
+    hash === "dosha-pitta" ||
+    hash === "dosha-kapha"
+  ) {
+    return "dosha";
+  }
   if (
     hash === "home" ||
     hash === "scanner" ||
@@ -160,6 +177,10 @@ export function App() {
   const [selectedCategory, setSelectedCategory] = useState<
     "all" | NutritionCategoryGuide["id"]
   >("all");
+  const [activeDoshaId, setActiveDoshaId] = useState<DoshaId>(() =>
+    readInitialDoshaFromHash(),
+  );
+  const doshaReturnScrollRef = useRef<number | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
 
@@ -221,7 +242,11 @@ export function App() {
 
   useEffect(() => {
     const syncViewFromHash = () => {
-      setActiveView(readInitialViewFromHash());
+      const nextView = readInitialViewFromHash();
+      setActiveView(nextView);
+      if (nextView === "dosha") {
+        setActiveDoshaId(readInitialDoshaFromHash());
+      }
     };
     window.addEventListener("hashchange", syncViewFromHash);
     window.addEventListener("popstate", syncViewFromHash);
@@ -237,6 +262,43 @@ export function App() {
       window.history.pushState(null, "", `#${view}`);
     }
     window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleOpenDosha = useCallback((doshaId: DoshaId) => {
+    doshaReturnScrollRef.current = window.scrollY;
+    setActiveDoshaId(doshaId);
+    setActiveView("dosha");
+    const targetHash = `#dosha-${doshaId}`;
+    if (window.location.hash !== targetHash) {
+      window.history.pushState(null, "", targetHash);
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleSelectDoshaChapter = useCallback((doshaId: DoshaId) => {
+    setActiveDoshaId(doshaId);
+    const targetHash = `#dosha-${doshaId}`;
+    if (window.location.hash !== targetHash) {
+      window.history.pushState(null, "", targetHash);
+    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleBackToRhythm = useCallback(() => {
+    const savedY = doshaReturnScrollRef.current;
+    setActiveView("home");
+    if (window.location.hash !== "#home") {
+      window.history.pushState(null, "", "#home");
+    }
+    window.setTimeout(() => {
+      if (typeof savedY === "number" && savedY > 120) {
+        window.scrollTo({ top: savedY, behavior: "smooth" });
+      } else {
+        document
+          .getElementById("discover-your-rhythm")
+          ?.scrollIntoView({ behavior: "smooth" });
+      }
+    }, 280);
   }, []);
 
   const handleOpenDashboardGoals = useCallback(() => {
@@ -354,6 +416,7 @@ export function App() {
                     setSelectedCategory(categoryId);
                     handleNavigate("categories");
                   }}
+                  onOpenDosha={handleOpenDosha}
                   onOpenDashboardGoals={handleOpenDashboardGoals}
                   onOpenAssistant={() => setAssistantOpen(true)}
                   onOpenOnboarding={() => setOnboardingOpen(true)}
@@ -439,6 +502,15 @@ export function App() {
 
               {activeView === "grocery" && (
                 <GroceryListView onNavigate={handleNavigate} />
+              )}
+
+              {activeView === "dosha" && (
+                <DoshaDetailView
+                  doshaId={activeDoshaId}
+                  onSelectDosha={handleSelectDoshaChapter}
+                  onBackToRhythm={handleBackToRhythm}
+                  onNavigate={handleNavigate}
+                />
               )}
             </motion.div>
           </AnimatePresence>
