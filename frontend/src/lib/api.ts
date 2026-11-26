@@ -266,3 +266,68 @@ export async function checkBackendHealth(): Promise<boolean> {
     return false;
   }
 }
+
+export interface NutriChatApiRequest {
+  message: string;
+  history: { role: "user" | "assistant"; content: string }[];
+  nutrition_context?: {
+    today_calories?: number;
+    today_protein?: number;
+    today_carbs?: number;
+    today_fats?: number;
+    target_calories?: number;
+    target_protein?: number;
+    target_carbs?: number;
+    target_fats?: number;
+    recent_meals?: string[];
+  };
+}
+
+export async function askNutriAssistant(
+  payload: NutriChatApiRequest,
+): Promise<{ reply: string; model_used: string }> {
+  const response = await fetch(`${API_BASE_URL}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+
+  return response.json() as Promise<{ reply: string; model_used: string }>;
+}
+
+export interface WeeklyMealPlanApiResponse {
+  preference: string;
+  days: {
+    day: string;
+    breakfast: string;
+    lunch: string;
+    snack: string;
+    dinner: string;
+    estimated_calories: number;
+    estimated_protein_g: number;
+    grocery_items: string[];
+  }[];
+  source: string;
+}
+
+export async function generateAiMealPlan(payload: {
+  preference: string;
+  daily_calorie_target: number;
+  budget_friendly: boolean;
+}): Promise<WeeklyMealPlanApiResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/meal-plan`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+
+  return response.json() as Promise<WeeklyMealPlanApiResponse>;
+}

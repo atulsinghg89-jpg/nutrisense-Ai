@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertCircle,
+  BarChart3,
   Calendar,
   Camera,
   Clock,
@@ -10,6 +11,7 @@ import {
   PieChart,
   RefreshCw,
   Sliders,
+  TrendingUp,
   Utensils,
 } from "lucide-react";
 import { MacroProgressBars } from "../components/MacroProgressBars";
@@ -20,11 +22,13 @@ import {
   staggerItemVariants,
 } from "../components/MotionPrimitives";
 import { API_BASE_URL, fetchMealLogs, round2 } from "../lib/api";
+import { calculateBMI } from "../lib/nutritionMath";
 import type {
   AppView,
   DailyMacroTargets,
   DashboardFoodsResponse,
   MealLogResponse,
+  UserNutritionProfile,
 } from "../types/nutrition";
 
 interface DashboardViewProps {
@@ -32,6 +36,9 @@ interface DashboardViewProps {
   onUpdateTargets: (targets: DailyMacroTargets) => void;
   onNavigate: (view: AppView) => void;
   refreshTrigger: number;
+  openGoalsInitially?: boolean;
+  onConsumedGoalsTrigger?: () => void;
+  userProfile?: UserNutritionProfile;
 }
 
 type DateScope = "today" | "all" | "custom";
@@ -54,6 +61,9 @@ export function DashboardView({
   onUpdateTargets,
   onNavigate,
   refreshTrigger,
+  openGoalsInitially = false,
+  onConsumedGoalsTrigger,
+  userProfile,
 }: DashboardViewProps) {
   const prefersReduced = useReducedMotion();
   const [dashboardData, setDashboardData] =
@@ -67,12 +77,34 @@ export function DashboardView({
     formatLocalYMD(new Date()),
   );
   const [mealTypeFilter, setMealTypeFilter] = useState<string>("all");
-  const [editingGoals, setEditingGoals] = useState(false);
+  const [editingGoals, setEditingGoals] = useState(openGoalsInitially);
   const [goalDraft, setGoalDraft] = useState<DailyMacroTargets>(dailyTargets);
+  const [weeklyMeals, setWeeklyMeals] = useState<MealLogResponse[]>([]);
+
+  useEffect(() => {
+    if (openGoalsInitially) {
+      setEditingGoals(true);
+      onConsumedGoalsTrigger?.();
+    }
+  }, [openGoalsInitially, onConsumedGoalsTrigger]);
 
   useEffect(() => {
     setGoalDraft(dailyTargets);
   }, [dailyTargets]);
+
+  useEffect(() => {
+    let active = true;
+    fetchMealLogs()
+      .then((res) => {
+        if (active) setWeeklyMeals(res.data.meals);
+      })
+      .catch(() => {
+        // Weekly insights will stay empty on connection failure
+      });
+    return () => {
+      active = false;
+    };
+  }, [refreshTrigger]);
 
   const loadLogs = useCallback(async () => {
     setLoading(true);
@@ -179,12 +211,32 @@ export function DashboardView({
               PostgreSQL • GET {endpointUsed}
             </span>
             <h1 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-white">
-              Nutrition Dashboard
+              Your Nutrition Overview
             </h1>
             <p className="mt-1.5 text-sm text-[#A1A1AA]">
-              Monitor logged meals, macro calorie balance, and daily nutrition
-              goals in real time.
+              Monitor logged meals, remaining daily calorie &amp; macro budgets,
+              and weekly/monthly PostgreSQL trends.
             </p>
+            {userProfile?.onboardingCompleted && (
+              <button
+                type="button"
+                onClick={() => onNavigate("planner")}
+                className="mt-2.5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#0A0A0A] px-3 py-1 text-[11px] font-medium text-zinc-300 transition hover:border-[#34D399]/50"
+              >
+                <span className="text-[#34D399]">
+                  {userProfile.name || "Member"}
+                </span>
+                <span>•</span>
+                <span>
+                  BMI{" "}
+                  {calculateBMI(userProfile.heightCm, userProfile.weightKg).bmi}
+                </span>
+                <span>•</span>
+                <span className="capitalize">
+                  {userProfile.fitnessGoal.replace("_", " ")}
+                </span>
+              </button>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
@@ -401,8 +453,10 @@ export function DashboardView({
                 <p className="mt-3 font-mono text-2xl font-bold text-[#A3FF12] tabular-nums">
                   <AnimatedNumber value={dailyTotals.calories} />
                 </p>
-                <p className="mt-1 font-mono text-xs text-zinc-500">
-                  / {dailyTargets.calories.toLocaleString()} kcal
+                <p className="mt-1 font-mono text-[11px] text-zinc-400">
+                  {dailyTotals.calories <= dailyTargets.calories
+                    ? `${Math.round(dailyTargets.calories - dailyTotals.calories)} left`
+                    : `+${Math.round(dailyTotals.calories - dailyTargets.calories)} over`}
                 </p>
               </div>
 
@@ -420,8 +474,8 @@ export function DashboardView({
                     suffix="g"
                   />
                 </p>
-                <p className="mt-1 font-mono text-xs text-zinc-500">
-                  / {dailyTargets.protein}g target
+                <p className="mt-1 font-mono text-[11px] text-zinc-400">
+                  {Math.max(0, Math.round(dailyTargets.protein - dailyTotals.protein))}g remaining
                 </p>
               </div>
 
@@ -439,8 +493,8 @@ export function DashboardView({
                     suffix="g"
                   />
                 </p>
-                <p className="mt-1 font-mono text-xs text-zinc-500">
-                  / {dailyTargets.carbs}g target
+                <p className="mt-1 font-mono text-[11px] text-zinc-400">
+                  {Math.max(0, Math.round(dailyTargets.carbs - dailyTotals.carbs))}g remaining
                 </p>
               </div>
 
@@ -458,8 +512,8 @@ export function DashboardView({
                     suffix="g"
                   />
                 </p>
-                <p className="mt-1 font-mono text-xs text-zinc-500">
-                  / {dailyTargets.fats}g target
+                <p className="mt-1 font-mono text-[11px] text-zinc-400">
+                  {Math.max(0, Math.round(dailyTargets.fats - dailyTotals.fats))}g remaining
                 </p>
               </div>
             </div>
@@ -748,6 +802,401 @@ export function DashboardView({
           </motion.div>
         )}
       </section>
+
+      {/* Meal-Wise Breakdown (Phase 10) */}
+      <MealTypeBreakdown displayedMeals={displayedMeals} />
+
+      {/* Part 12.D & Phase 9/15: Real Weekly & Monthly Nutrition Insights from PostgreSQL */}
+      <WeeklyInsightsSection
+        meals={weeklyMeals}
+        dailyTargets={dailyTargets}
+        onNavigate={onNavigate}
+      />
     </div>
+  );
+}
+
+function MealTypeBreakdown({ displayedMeals }: { displayedMeals: MealLogResponse[] }) {
+  const categories = useMemo(() => {
+    const slots = ["breakfast", "lunch", "dinner", "snack"] as const;
+    return slots.map((slot) => {
+      const matched = displayedMeals.filter(
+        (m) => m.meal_type.toLowerCase() === slot,
+      );
+      return {
+        slot,
+        count: matched.length,
+        calories: round2(matched.reduce((s, m) => s + m.total_calories, 0)),
+        protein: round2(matched.reduce((s, m) => s + m.total_protein, 0)),
+        carbs: round2(matched.reduce((s, m) => s + m.total_carbs, 0)),
+        fats: round2(matched.reduce((s, m) => s + m.total_fats, 0)),
+      };
+    });
+  }, [displayedMeals]);
+
+  return (
+    <section className="rounded-3xl border border-white/[0.08] bg-[#121212] p-6">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-display text-lg font-bold text-white">
+          Meal-Wise Nutritional Breakdown
+        </h2>
+        <span className="text-xs text-[#A1A1AA]">
+          Grouped across Breakfast, Lunch, Dinner &amp; Snacks for active filter
+        </span>
+      </div>
+      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+        {categories.map((cat) => (
+          <div
+            key={cat.slot}
+            className="rounded-2xl border border-white/[0.07] bg-[#0A0A0A] p-4"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold capitalize text-white">
+                {cat.slot}
+              </span>
+              <span className="rounded-full bg-[#171717] px-2 py-0.5 font-mono text-[10px] text-[#34D399]">
+                {cat.count} {cat.count === 1 ? "log" : "logs"}
+              </span>
+            </div>
+            <p className="mt-2.5 font-mono text-xl font-bold text-[#A3FF12] tabular-nums">
+              {Math.round(cat.calories)}{" "}
+              <span className="text-xs font-normal text-zinc-400">kcal</span>
+            </p>
+            <p className="mt-1 font-mono text-[11px] text-[#A1A1AA] tabular-nums">
+              P {cat.protein.toFixed(1)}g • C {cat.carbs.toFixed(1)}g • F{" "}
+              {cat.fats.toFixed(1)}g
+            </p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function WeeklyInsightsSection({
+  meals,
+  dailyTargets,
+  onNavigate,
+}: {
+  meals: MealLogResponse[];
+  dailyTargets: DailyMacroTargets;
+  onNavigate: (view: AppView) => void;
+}) {
+  const [windowDays, setWindowDays] = useState<7 | 30>(7);
+
+  const insights = useMemo(() => {
+    const days: {
+      ymd: string;
+      shortLabel: string;
+      calories: number;
+      protein: number;
+      mealCount: number;
+    }[] = [];
+
+    const now = new Date();
+    for (let offset = windowDays - 1; offset >= 0; offset--) {
+      const d = new Date(now);
+      d.setDate(now.getDate() - offset);
+      const ymd = formatLocalYMD(d);
+      const shortLabel =
+        windowDays === 7
+          ? d.toLocaleDateString([], { weekday: "short" })
+          : String(d.getDate());
+      const dayMeals = meals.filter((m) => isSameLocalDay(m.logged_at, ymd));
+      days.push({
+        ymd,
+        shortLabel,
+        calories: round2(dayMeals.reduce((s, m) => s + m.total_calories, 0)),
+        protein: round2(dayMeals.reduce((s, m) => s + m.total_protein, 0)),
+        mealCount: dayMeals.length,
+      });
+    }
+
+    const activeDays = days.filter((d) => d.mealCount > 0);
+    const totalCalories = round2(days.reduce((s, d) => s + d.calories, 0));
+    const totalProtein = round2(days.reduce((s, d) => s + d.protein, 0));
+    const avgCaloriesPerActiveDay =
+      activeDays.length > 0 ? round2(totalCalories / activeDays.length) : 0;
+    const avgProteinPerActiveDay =
+      activeDays.length > 0 ? round2(totalProtein / activeDays.length) : 0;
+
+    const rangeSet = new Set(days.map((d) => d.ymd));
+    const recentMeals = meals.filter((m) => {
+      const parsed = new Date(m.logged_at);
+      return !Number.isNaN(parsed.getTime()) && rangeSet.has(formatLocalYMD(parsed));
+    });
+
+    const freqMap = new Map<string, { name: string; count: number; avgKcal: number }>();
+    for (const meal of recentMeals) {
+      const key = meal.meal_name.trim().toLowerCase();
+      const prev = freqMap.get(key);
+      if (prev) {
+        const nextCount = prev.count + 1;
+        prev.avgKcal = round2((prev.avgKcal * prev.count + meal.total_calories) / nextCount);
+        prev.count = nextCount;
+      } else {
+        freqMap.set(key, {
+          name: meal.meal_name,
+          count: 1,
+          avgKcal: round2(meal.total_calories),
+        });
+      }
+    }
+
+    const topMeals = Array.from(freqMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4);
+
+    const maxDayKcal = Math.max(
+      dailyTargets.calories,
+      ...days.map((d) => d.calories),
+      1,
+    );
+    const maxDayProtein = Math.max(
+      dailyTargets.protein,
+      ...days.map((d) => d.protein),
+      1,
+    );
+
+    const goalAlignmentPct =
+      avgCaloriesPerActiveDay > 0
+        ? Math.min(
+            100,
+            Math.round((avgCaloriesPerActiveDay / Math.max(dailyTargets.calories, 1)) * 100),
+          )
+        : 0;
+
+    return {
+      days,
+      chartDays: days.slice(-7),
+      activeDaysCount: activeDays.length,
+      totalCalories,
+      totalProtein,
+      avgCaloriesPerActiveDay,
+      avgProteinPerActiveDay,
+      topMeals,
+      maxDayKcal,
+      maxDayProtein,
+      goalAlignmentPct,
+    };
+  }, [meals, dailyTargets.calories, dailyTargets.protein, windowDays]);
+
+  return (
+    <section className="rounded-3xl border border-white/[0.08] bg-[#121212] p-6 sm:p-8">
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b border-white/[0.08] pb-5">
+        <div>
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-[#34D399]">
+            <BarChart3 className="h-3.5 w-3.5" />
+            Nutrition Insights &amp; Trends ({windowDays === 7 ? "Weekly" : "Monthly"})
+          </span>
+          <h2 className="mt-1.5 font-display text-xl font-bold text-white sm:text-2xl">
+            Trends &amp; Habit Consistency
+          </h2>
+          <p className="mt-1 text-xs text-[#A1A1AA]">
+            Computed strictly from your PostgreSQL meal logs over the last{" "}
+            {windowDays} days ({insights.activeDaysCount} active logging{" "}
+            {insights.activeDaysCount === 1 ? "day" : "days"}).
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex rounded-full border border-white/10 bg-[#0A0A0A] p-1">
+            {([7, 30] as const).map((daysCount) => (
+              <button
+                key={daysCount}
+                type="button"
+                onClick={() => setWindowDays(daysCount)}
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                  windowDays === daysCount
+                    ? "bg-[#A3FF12] text-[#0A0A0A]"
+                    : "text-[#A1A1AA] hover:text-white"
+                }`}
+              >
+                {daysCount === 7 ? "7 Days" : "30 Days"}
+              </button>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => onNavigate("planner")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-[#34D399]/35 bg-[#34D399]/10 px-4 py-2 text-xs font-semibold text-[#34D399] transition hover:bg-[#34D399]/20"
+          >
+            <TrendingUp className="h-3.5 w-3.5" />
+            <span>Open Planner &amp; BMI</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Summary Metrics */}
+      <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="rounded-2xl border border-white/[0.07] bg-[#0A0A0A] p-4">
+          <p className="text-xs text-[#A1A1AA]">Avg Calories / Active Day</p>
+          <p className="mt-2 font-mono text-2xl font-bold text-[#A3FF12] tabular-nums">
+            <AnimatedNumber value={insights.avgCaloriesPerActiveDay} />{" "}
+            <span className="text-xs font-normal text-zinc-400">kcal</span>
+          </p>
+          <p className="mt-1 font-mono text-[11px] text-zinc-500">
+            Target: {dailyTargets.calories} kcal/day
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-white/[0.07] bg-[#0A0A0A] p-4">
+          <p className="text-xs text-[#A1A1AA]">
+            {windowDays}-Day Protein Total
+          </p>
+          <p className="mt-2 font-mono text-2xl font-bold text-[#34D399] tabular-nums">
+            <AnimatedNumber value={insights.totalProtein} decimals={1} suffix="g" />
+          </p>
+          <p className="mt-1 font-mono text-[11px] text-zinc-500">
+            Avg/active day: {insights.avgProteinPerActiveDay.toFixed(1)}g
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-white/[0.07] bg-[#0A0A0A] p-4">
+          <p className="text-xs text-[#A1A1AA]">{windowDays}-Day Calories</p>
+          <p className="mt-2 font-mono text-2xl font-bold text-white tabular-nums">
+            <AnimatedNumber value={insights.totalCalories} />
+          </p>
+          <p className="mt-1 font-mono text-[11px] text-zinc-500">
+            Logged on {insights.activeDaysCount}/{windowDays} days
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-white/[0.07] bg-[#0A0A0A] p-4">
+          <p className="text-xs text-[#A1A1AA]">Goal Alignment</p>
+          <p className="mt-2 font-mono text-2xl font-bold text-emerald-300 tabular-nums">
+            {insights.goalAlignmentPct}%
+          </p>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
+            <div
+              style={{ width: `${insights.goalAlignmentPct}%` }}
+              className="h-full rounded-full bg-gradient-to-r from-[#34D399] to-[#A3FF12]"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Charts + Most Frequently Logged Meals */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-12">
+        <div className="rounded-2xl border border-white/[0.07] bg-[#0A0A0A] p-5 lg:col-span-4">
+          <div className="mb-3 flex items-center justify-between text-xs">
+            <span className="font-semibold text-white">Daily Calories (7d)</span>
+            <span className="font-mono text-[11px] text-[#A1A1AA]">
+              Goal {dailyTargets.calories}
+            </span>
+          </div>
+
+          <div className="grid h-44 grid-cols-7 items-end gap-2 pt-3">
+            {insights.chartDays.map((d) => {
+              const heightPct =
+                d.calories > 0
+                  ? Math.max(8, Math.round((d.calories / insights.maxDayKcal) * 100))
+                  : 4;
+              return (
+                <div
+                  key={`kcal-${d.ymd}`}
+                  className="flex h-full flex-col items-center justify-end gap-1.5"
+                >
+                  <span className="font-mono text-[10px] text-[#A1A1AA] tabular-nums">
+                    {d.calories > 0 ? Math.round(d.calories) : "0"}
+                  </span>
+                  <div className="flex h-28 w-full items-end justify-center rounded-lg bg-white/[0.03] p-1">
+                    <motion.div
+                      initial={{ height: 0 }}
+                      animate={{ height: `${heightPct}%` }}
+                      transition={{ duration: 0.5, ease: EASE_PREMIUM }}
+                      className={`w-full rounded-md ${
+                        d.calories > 0
+                          ? "bg-gradient-to-t from-[#34D399] to-[#A3FF12]"
+                          : "bg-white/[0.08]"
+                      }`}
+                      title={`${d.ymd}: ${d.calories} kcal`}
+                    />
+                  </div>
+                  <span className="text-[10px] font-medium text-zinc-400">
+                    {d.shortLabel}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/[0.07] bg-[#0A0A0A] p-5 lg:col-span-4">
+          <div className="mb-3 flex items-center justify-between text-xs">
+            <span className="font-semibold text-white">Protein Intake (7d)</span>
+            <span className="font-mono text-[11px] text-[#34D399]">
+              Goal {dailyTargets.protein}g
+            </span>
+          </div>
+
+          <div className="grid h-44 grid-cols-7 items-end gap-2 pt-3">
+            {insights.chartDays.map((d) => {
+              const heightPct =
+                d.protein > 0
+                  ? Math.max(8, Math.round((d.protein / insights.maxDayProtein) * 100))
+                  : 4;
+              return (
+                <div
+                  key={`pro-${d.ymd}`}
+                  className="flex h-full flex-col items-center justify-end gap-1.5"
+                >
+                  <span className="font-mono text-[10px] text-[#A1A1AA] tabular-nums">
+                    {d.protein > 0 ? `${Math.round(d.protein)}g` : "0"}
+                  </span>
+                  <div className="flex h-28 w-full items-end justify-center rounded-lg bg-white/[0.03] p-1">
+                    <motion.div
+                      initial={{ height: 0 }}
+                      animate={{ height: `${heightPct}%` }}
+                      transition={{ duration: 0.5, ease: EASE_PREMIUM }}
+                      className={`w-full rounded-md ${
+                        d.protein > 0 ? "bg-[#34D399]" : "bg-white/[0.08]"
+                      }`}
+                      title={`${d.ymd}: ${d.protein}g protein`}
+                    />
+                  </div>
+                  <span className="text-[10px] font-medium text-zinc-400">
+                    {d.shortLabel}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-white/[0.07] bg-[#0A0A0A] p-5 lg:col-span-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-white">
+            Most Frequent Meals ({windowDays}d)
+          </h3>
+
+          {insights.topMeals.length === 0 ? (
+            <div className="mt-6 text-xs text-[#A1A1AA]">
+              Log meals with the AI Food Scanner to reveal your most frequent
+              dishes and real averages here.
+            </div>
+          ) : (
+            <ul className="mt-4 space-y-2.5">
+              {insights.topMeals.map((m) => (
+                <li
+                  key={m.name}
+                  className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.06] bg-[#121212] px-3.5 py-2.5 text-xs"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-white">{m.name}</p>
+                    <p className="font-mono text-[11px] text-[#A1A1AA]">
+                      Avg ~{Math.round(m.avgKcal)} kcal
+                    </p>
+                  </div>
+                  <span className="shrink-0 rounded-full border border-[#34D399]/30 bg-[#34D399]/10 px-2.5 py-0.5 font-mono text-[11px] font-bold text-[#34D399]">
+                    {m.count}x
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </section>
   );
 }

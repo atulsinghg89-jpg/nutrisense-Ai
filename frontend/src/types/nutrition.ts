@@ -1,4 +1,73 @@
-export type AppView = "home" | "scanner" | "alternatives" | "categories" | "dashboard";
+export type AppView =
+  | "home"
+  | "scanner"
+  | "alternatives"
+  | "categories"
+  | "dashboard"
+  | "planner"
+  | "indian-foods"
+  | "grocery";
+
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+  modelUsed?: string;
+}
+
+export interface MealPlanDay {
+  day: string;
+  breakfast: string;
+  lunch: string;
+  snack: string;
+  dinner: string;
+  estimated_calories: number;
+  estimated_protein_g: number;
+  grocery_items: string[];
+}
+
+export interface GroceryItem {
+  id: string;
+  name: string;
+  category: "Proteins & Dairy" | "Grains & Pulses" | "Produce & Herbs" | "Pantry & Spices";
+  completed: boolean;
+  source?: string;
+}
+
+export type FitnessGoal =
+  | "weight_loss"
+  | "weight_gain"
+  | "muscle_building"
+  | "healthy_lifestyle";
+
+export type ActivityLevel =
+  | "sedentary"
+  | "light"
+  | "moderate"
+  | "active"
+  | "very_active";
+
+export interface UserNutritionProfile {
+  name: string;
+  age: number;
+  sex: "male" | "female";
+  heightCm: number;
+  weightKg: number;
+  activityLevel: ActivityLevel;
+  dietaryPreference: "vegetarian" | "eggetarian" | "non_vegetarian" | "vegan";
+  fitnessGoal: FitnessGoal;
+  onboardingCompleted: boolean;
+}
+
+export interface ScanHistoryEntry {
+  id: string;
+  scannedAt: string;
+  itemsSummary: string;
+  itemCount: number;
+  calories: number;
+  protein: number;
+}
 
 export interface MacroTotals {
   portion_grams: number;

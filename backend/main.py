@@ -710,3 +710,196 @@ def get_logged_foods(
         meals=[MealLogResponse.model_validate(meal) for meal in meals],
         foods=foods,
     )
+
+
+class ChatMessageInput(BaseModel):
+    role: str = Field(..., pattern="^(user|assistant)$")
+    content: str = Field(..., min_length=1, max_length=2000)
+
+
+class NutritionContextInput(BaseModel):
+    today_calories: float | None = None
+    today_protein: float | None = None
+    today_carbs: float | None = None
+    today_fats: float | None = None
+    target_calories: float | None = None
+    target_protein: float | None = None
+    target_carbs: float | None = None
+    target_fats: float | None = None
+    recent_meals: list[str] | None = None
+
+
+class NutriChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=2000)
+    history: list[ChatMessageInput] = Field(default_factory=list)
+    nutrition_context: NutritionContextInput | None = None
+
+
+class NutriChatResponse(BaseModel):
+    reply: str
+    model_used: str
+
+
+def _ask_gemini_nutrition_assistant(payload: NutriChatRequest) -> NutriChatResponse:
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GEMINI_API_KEY is not configured.",
+        )
+
+    ctx_lines = []
+    if payload.nutrition_context:
+        ctx = payload.nutrition_context
+        ctx_lines.append(
+            f"User's logged intake today: {ctx.today_calories or 0} kcal, "
+            f"{ctx.today_protein or 0}g protein, {ctx.today_carbs or 0}g carbs, {ctx.today_fats or 0}g fats."
+        )
+        ctx_lines.append(
+            f"User's daily targets: {ctx.target_calories or 2200} kcal, "
+            f"{ctx.target_protein or 150}g protein, {ctx.target_carbs or 250}g carbs, {ctx.target_fats or 70}g fats."
+        )
+        if ctx.recent_meals:
+            ctx_lines.append(f"Recent meals: {', '.join(ctx.recent_meals[:5])}.")
+
+    history_text = ""
+    if payload.history:
+        recent_turns = payload.history[-6:]
+        history_text = "\n".join(
+            f"{'User' if m.role == 'user' else 'Assistant'}: {m.content}" for m in recent_turns
+        )
+
+    system_instruction = (
+        "You are Nutri AI, the intelligent nutrition assistant inside NutriSense AI. "
+        "Provide practical, concise, evidence-informed everyday nutrition guidance, Indian and global meal ideas, "
+        "and macro-balancing suggestions. Never make medical diagnoses or prescribe treatments; advise consulting a "
+        "doctor or registered dietitian for medical conditions. Keep formatting clean with short bullet points."
+    )
+    prompt_parts = [system_instruction]
+    if ctx_lines:
+        prompt_parts.append("Live User Nutrition Context:\n" + "\n".join(ctx_lines))
+    if history_text:
+        prompt_parts.append("Recent Conversation:\n" + history_text)
+    prompt_parts.append(f"User Question: {payload.message}")
+
+    client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=20000))
+    chat_models = list(dict.fromkeys(["gemini-3.1-flash-lite", *GEMINI_FALLBACK_MODELS]))
+    last_error: Exception | None = None
+    for model_name in chat_models:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents="\n\n".join(prompt_parts),
+                config=types.GenerateContentConfig(temperature=0.4),
+            )
+            text_out = (response.text or "").strip()
+            if text_out:
+                return NutriChatResponse(reply=text_out, model_used=model_name)
+        except genai_errors.APIError as exc:
+            last_error = exc
+            if exc.code in {404, 429, 500, 503, 504}:
+                logger.warning("Gemini chat model %s unavailable (%s); trying fallback", model_name, exc.code)
+                continue
+            raise
+
+    raise last_error or ValueError("All Gemini models failed to respond.")
+
+
+@app.post("/api/chat", response_model=NutriChatResponse, tags=["AI Assistant"])
+async def nutri_ai_chat(payload: NutriChatRequest) -> NutriChatResponse:
+    """Answer user nutrition questions with Gemini using live meal context."""
+    try:
+        return await run_in_threadpool(_ask_gemini_nutrition_assistant, payload)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Gemini Nutri AI chat failed")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Nutri AI could not reach Gemini right now. Please try again shortly.",
+        ) from exc
+
+
+class MealPlanDay(BaseModel):
+    day: str
+    breakfast: str
+    lunch: str
+    snack: str
+    dinner: str
+    estimated_calories: int
+    estimated_protein_g: int
+    grocery_items: list[str]
+
+
+class WeeklyMealPlanRequest(BaseModel):
+    preference: str = Field(default="balanced_indian", max_length=80)
+    daily_calorie_target: int = Field(default=2000, ge=1000, le=5000)
+    budget_friendly: bool = Field(default=True)
+
+
+class WeeklyMealPlanResponse(BaseModel):
+    preference: str
+    days: list[MealPlanDay]
+    source: str
+
+
+def _generate_gemini_meal_plan(payload: WeeklyMealPlanRequest) -> WeeklyMealPlanResponse:
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="GEMINI_API_KEY is not configured.",
+        )
+
+    class _PlanSchema(BaseModel):
+        days: list[MealPlanDay]
+
+    prompt = (
+        f"Create a 7-day weekly meal plan (Monday through Sunday) tailored to preference '{payload.preference}', "
+        f"around {payload.daily_calorie_target} kcal/day, emphasizing wholesome Indian & everyday affordable foods "
+        f"({'budget-friendly pantry staples prioritized' if payload.budget_friendly else 'varied whole foods'}). "
+        "For each day return breakfast, lunch, snack, dinner, estimated_calories, estimated_protein_g, and 3-5 core grocery_items."
+    )
+
+    client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=25000))
+    planner_models = list(dict.fromkeys(["gemini-3.1-flash-lite", *GEMINI_FALLBACK_MODELS]))
+    last_error: Exception | None = None
+    for model_name in planner_models:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.35,
+                    response_mime_type="application/json",
+                    response_schema=_PlanSchema,
+                ),
+            )
+            parsed = response.parsed if isinstance(response.parsed, _PlanSchema) else _PlanSchema.model_validate(json.loads(response.text))
+            return WeeklyMealPlanResponse(
+                preference=payload.preference,
+                days=parsed.days[:7],
+                source=f"gemini:{model_name}",
+            )
+        except genai_errors.APIError as exc:
+            last_error = exc
+            if exc.code in {404, 429, 500, 503, 504}:
+                continue
+            raise
+
+    raise last_error or ValueError("All Gemini models failed for meal planning.")
+
+
+@app.post("/api/meal-plan", response_model=WeeklyMealPlanResponse, tags=["AI Assistant"])
+async def generate_weekly_meal_plan(payload: WeeklyMealPlanRequest) -> WeeklyMealPlanResponse:
+    """Generate an AI-personalized 7-day meal plan via Gemini."""
+    try:
+        return await run_in_threadpool(_generate_gemini_meal_plan, payload)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Gemini meal plan generation failed")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="AI Meal Planner is temporarily unavailable.",
+        ) from exc

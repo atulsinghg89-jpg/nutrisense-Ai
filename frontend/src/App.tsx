@@ -1,8 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
+import { Bot, CheckCircle2, X } from "lucide-react";
 import { EASE_PREMIUM } from "./components/MotionPrimitives";
 import { Navbar } from "./components/Navbar";
+import { NutriAssistantDrawer } from "./components/NutriAssistantDrawer";
+import { OnboardingModal } from "./components/OnboardingModal";
 import { checkBackendHealth, fetchMealLogs, round2 } from "./lib/api";
+import { loadUserProfile, saveUserProfile } from "./lib/nutritionMath";
 import type {
   AppView,
   DailyMacroTargets,
@@ -10,11 +14,15 @@ import type {
   EditableFoodItem,
   MacroTotals,
   ScanSession,
+  UserNutritionProfile,
 } from "./types/nutrition";
 import { AlternativesView } from "./views/AlternativesView";
 import { CategoriesView } from "./views/CategoriesView";
 import { DashboardView } from "./views/DashboardView";
+import { GroceryListView } from "./views/GroceryListView";
 import { HomeView } from "./views/HomeView";
+import { IndianFoodsView } from "./views/IndianFoodsView";
+import { MealPlannerView } from "./views/MealPlannerView";
 import { ScannerView } from "./views/ScannerView";
 
 const TARGETS_STORAGE_KEY = "nutrisense_daily_targets_v1";
@@ -57,7 +65,10 @@ function readInitialViewFromHash(): AppView {
     hash === "scanner" ||
     hash === "alternatives" ||
     hash === "categories" ||
-    hash === "dashboard"
+    hash === "dashboard" ||
+    hash === "planner" ||
+    hash === "indian-foods" ||
+    hash === "grocery"
   ) {
     return hash;
   }
@@ -104,11 +115,29 @@ export function App() {
   const [dailyTargets, setDailyTargets] = useState<DailyMacroTargets>(() =>
     loadStoredTargets(),
   );
+  const [userProfile, setUserProfile] = useState<UserNutritionProfile>(() =>
+    loadUserProfile(),
+  );
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [dashboardRefreshTrigger, setDashboardRefreshTrigger] = useState(0);
   const [todaySummary, setTodaySummary] =
     useState<DashboardSummary>(EMPTY_SUMMARY);
   const [todaySummaryLoading, setTodaySummaryLoading] = useState(true);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
+  const [openGoalsTrigger, setOpenGoalsTrigger] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message);
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastMessage(null);
+    }, 3600);
+  }, []);
 
   useEffect(() => {
     void checkBackendHealth().then(setApiOnline);
@@ -170,6 +199,11 @@ export function App() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
+  const handleOpenDashboardGoals = useCallback(() => {
+    setOpenGoalsTrigger(true);
+    handleNavigate("dashboard");
+  }, [handleNavigate]);
+
   const persistScanWithoutLargeBlob = useCallback((session: ScanSession) => {
     try {
       const compact: ScanSession = {
@@ -186,8 +220,13 @@ export function App() {
     (session: ScanSession) => {
       setScanSession(session);
       persistScanWithoutLargeBlob(session);
+      showToast(
+        `AI Scan Complete: ${session.items.length} ${
+          session.items.length === 1 ? "item" : "items"
+        } detected (${Math.round(session.totals.calories)} kcal est.)`,
+      );
     },
-    [persistScanWithoutLargeBlob],
+    [persistScanWithoutLargeBlob, showToast],
   );
 
   const handleUpdateItems = useCallback(
@@ -202,14 +241,32 @@ export function App() {
     [persistScanWithoutLargeBlob],
   );
 
-  const handleUpdateTargets = useCallback((nextTargets: DailyMacroTargets) => {
-    setDailyTargets(nextTargets);
-    try {
-      localStorage.setItem(TARGETS_STORAGE_KEY, JSON.stringify(nextTargets));
-    } catch {
-      // Ignore storage quota errors
-    }
-  }, []);
+  const handleUpdateTargets = useCallback(
+    (nextTargets: DailyMacroTargets) => {
+      setDailyTargets(nextTargets);
+      try {
+        localStorage.setItem(TARGETS_STORAGE_KEY, JSON.stringify(nextTargets));
+      } catch {
+        // Ignore storage quota errors
+      }
+      showToast(`Daily target updated to ${nextTargets.calories} kcal`);
+    },
+    [showToast],
+  );
+
+  const handleApplyProfileAndTargets = useCallback(
+    (nextProfile: UserNutritionProfile, nextTargets: DailyMacroTargets) => {
+      setUserProfile(nextProfile);
+      saveUserProfile(nextProfile);
+      handleUpdateTargets(nextTargets);
+      setOnboardingOpen(false);
+    },
+    [handleUpdateTargets],
+  );
+
+  const displayProfileName = userProfile.onboardingCompleted
+    ? userProfile.name || "Profile"
+    : undefined;
 
   return (
     <MotionConfig reducedMotion="user">
@@ -223,6 +280,9 @@ export function App() {
         <Navbar
           activeView={activeView}
           onNavigate={handleNavigate}
+          onOpenAssistant={() => setAssistantOpen(true)}
+          onOpenOnboarding={() => setOnboardingOpen(true)}
+          profileName={displayProfileName}
           alternativesCount={scanSession?.alternatives.length ?? 0}
           apiOnline={apiOnline}
         />
@@ -239,6 +299,10 @@ export function App() {
               {activeView === "home" && (
                 <HomeView
                   onNavigate={handleNavigate}
+                  onOpenDashboardGoals={handleOpenDashboardGoals}
+                  onOpenAssistant={() => setAssistantOpen(true)}
+                  onOpenOnboarding={() => setOnboardingOpen(true)}
+                  profileName={displayProfileName}
                   hasActiveScan={Boolean(
                     scanSession && scanSession.alternatives.length > 0,
                   )}
@@ -257,7 +321,10 @@ export function App() {
                   onUpdateItems={handleUpdateItems}
                   dailyTargets={dailyTargets}
                   onNavigate={handleNavigate}
-                  onMealLogged={() => setDashboardRefreshTrigger((n) => n + 1)}
+                  onMealLogged={() => {
+                    setDashboardRefreshTrigger((n) => n + 1);
+                    showToast("Meal logged to your PostgreSQL Dashboard");
+                  }}
                 />
               )}
 
@@ -276,11 +343,96 @@ export function App() {
                   onUpdateTargets={handleUpdateTargets}
                   onNavigate={handleNavigate}
                   refreshTrigger={dashboardRefreshTrigger}
+                  openGoalsInitially={openGoalsTrigger}
+                  onConsumedGoalsTrigger={() => setOpenGoalsTrigger(false)}
+                  userProfile={userProfile}
                 />
+              )}
+
+              {activeView === "planner" && (
+                <MealPlannerView
+                  dailyTargets={dailyTargets}
+                  userProfile={userProfile}
+                  onApplyProfileTargets={handleApplyProfileAndTargets}
+                  onNavigate={handleNavigate}
+                />
+              )}
+
+              {activeView === "indian-foods" && (
+                <IndianFoodsView
+                  onNavigate={handleNavigate}
+                  onMealLogged={(name) => {
+                    setDashboardRefreshTrigger((n) => n + 1);
+                    showToast(
+                      name
+                        ? `Logged ${name} to Dashboard`
+                        : "Logged meal to Dashboard",
+                    );
+                  }}
+                />
+              )}
+
+              {activeView === "grocery" && (
+                <GroceryListView onNavigate={handleNavigate} />
               )}
             </motion.div>
           </AnimatePresence>
         </main>
+
+        {/* Live Event Toast Notification (Phase 17.F) */}
+        <AnimatePresence>
+          {toastMessage && (
+            <motion.div
+              role="status"
+              aria-live="polite"
+              initial={{ opacity: 0, y: 16, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 12, scale: 0.96 }}
+              className="fixed bottom-20 left-4 z-50 flex max-w-sm items-center gap-2.5 rounded-2xl border border-[#34D399]/40 bg-[#121212]/95 px-4 py-3 text-xs font-medium text-white shadow-2xl backdrop-blur-xl md:bottom-6 md:left-6"
+            >
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-[#34D399]" />
+              <span className="leading-snug">{toastMessage}</span>
+              <button
+                type="button"
+                onClick={() => setToastMessage(null)}
+                aria-label="Dismiss notification"
+                className="ml-1 rounded-md p-0.5 text-zinc-400 hover:text-white"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Floating Quick-Launch Button for Nutri AI Assistant */}
+        <motion.button
+          type="button"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.96 }}
+          onClick={() => setAssistantOpen(true)}
+          aria-label="Open Nutri AI Assistant"
+          className="fixed right-4 bottom-20 z-30 flex items-center gap-2 rounded-full border border-[#A3FF12]/40 bg-[#121212]/95 px-4 py-3 text-xs font-bold text-[#A3FF12] shadow-[0_8px_30px_rgba(0,0,0,0.75)] backdrop-blur-xl transition hover:border-[#A3FF12] hover:bg-[#171717] md:right-6 md:bottom-6"
+        >
+          <Bot className="h-4 w-4" />
+          <span className="hidden sm:inline">Ask Nutri AI</span>
+        </motion.button>
+
+        {/* Nutri AI Slide-Over Chatbot Drawer */}
+        <NutriAssistantDrawer
+          open={assistantOpen}
+          onClose={() => setAssistantOpen(false)}
+          todaySummary={todaySummary}
+          dailyTargets={dailyTargets}
+          scanSession={scanSession}
+        />
+
+        {/* Onboarding & Profile Goals Modal */}
+        <OnboardingModal
+          open={onboardingOpen}
+          initialProfile={userProfile}
+          onClose={() => setOnboardingOpen(false)}
+          onComplete={handleApplyProfileAndTargets}
+        />
       </div>
     </MotionConfig>
   );

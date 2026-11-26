@@ -48,6 +48,28 @@ interface ScannerViewProps {
   onMealLogged: () => void;
 }
 
+const SCAN_HISTORY_STORAGE_KEY = "nutrisense_scan_history_v1";
+
+interface CompactScanHistory {
+  id: string;
+  scannedAt: string;
+  itemsSummary: string;
+  itemCount: number;
+  calories: number;
+  protein: number;
+}
+
+function loadScanHistory(): CompactScanHistory[] {
+  try {
+    const raw = localStorage.getItem(SCAN_HISTORY_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as CompactScanHistory[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 const ACCEPTED_MIME_TYPES =
   "image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif,image/*";
 
@@ -86,6 +108,9 @@ export function ScannerView({
   const [scanError, setScanError] = useState<string | null>(null);
   const [recalcStatus, setRecalcStatus] = useState<"idle" | "syncing" | "synced">(
     "idle",
+  );
+  const [scanHistory, setScanHistory] = useState<CompactScanHistory[]>(() =>
+    loadScanHistory(),
   );
 
   // Log meal form state
@@ -246,13 +271,32 @@ export function ScannerView({
         initial_portion_grams: item.portion_grams,
       }));
 
-      onScanComplete({
+      const sessionPayload: ScanSession = {
         imagePreviewUrl: previewUrl,
         fileName: selectedFile.name,
         items: editableItems,
         totals: result.totals,
         alternatives: result.healthier_alternatives,
         scannedAt: new Date().toISOString(),
+      };
+      onScanComplete(sessionPayload);
+
+      const newEntry: CompactScanHistory = {
+        id: `${Date.now()}`,
+        scannedAt: sessionPayload.scannedAt,
+        itemsSummary: editableItems.map((i) => i.name).slice(0, 3).join(", "),
+        itemCount: editableItems.length,
+        calories: Math.round(result.totals.calories),
+        protein: Math.round(result.totals.protein * 10) / 10,
+      };
+      setScanHistory((prev) => {
+        const next = [newEntry, ...prev].slice(0, 5);
+        try {
+          localStorage.setItem(SCAN_HISTORY_STORAGE_KEY, JSON.stringify(next));
+        } catch {
+          // Ignore storage quota errors
+        }
+        return next;
       });
     } catch (error) {
       setScanError(
@@ -654,11 +698,28 @@ export function ScannerView({
             )}
 
             {scanError && (
-              <div className="mt-3 flex items-start gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
-                <span>{scanError}</span>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+                  <span>{scanError}</span>
+                </div>
+                {selectedFile && !scanning && (
+                  <button
+                    type="button"
+                    onClick={handleAnalyzeMeal}
+                    className="shrink-0 rounded-lg border border-rose-400/40 bg-[#0A0A0A] px-2.5 py-1 text-[11px] font-semibold text-white hover:border-white/40"
+                  >
+                    Retry Scan
+                  </button>
+                )}
               </div>
             )}
+
+            <p className="mt-3 text-[11px] leading-relaxed text-zinc-500">
+              AI Estimate Note: Food portions and macros are estimated from
+              visible imagery using Gemini Vision — refine grams anytime with
+              the live sliders.
+            </p>
 
             <motion.button
               type="button"
@@ -706,6 +767,45 @@ export function ScannerView({
               targets={dailyTargets}
             />
           </div>
+
+          {/* Recent Scan Session History (compact browser records) */}
+          {scanHistory.length > 0 && (
+            <div className="rounded-2xl border border-white/[0.08] bg-[#121212] p-5 shadow-xl">
+              <div className="mb-3 flex items-center justify-between">
+                <h2 className="font-display text-sm font-bold text-white">
+                  Recent AI Scans
+                </h2>
+                <span className="font-mono text-[11px] text-[#34D399]">
+                  Last {scanHistory.length}
+                </span>
+              </div>
+              <ul className="space-y-2">
+                {scanHistory.map((entry) => (
+                  <li
+                    key={entry.id}
+                    className="flex items-center justify-between gap-2 rounded-xl border border-white/[0.05] bg-[#0A0A0A] px-3 py-2 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-zinc-200">
+                        {entry.itemsSummary || `${entry.itemCount} food items`}
+                      </p>
+                      <p className="text-[10px] text-zinc-500">
+                        {new Date(entry.scannedAt).toLocaleString([], {
+                          month: "short",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </p>
+                    </div>
+                    <span className="shrink-0 font-mono text-[11px] font-bold text-[#A3FF12]">
+                      {entry.calories} kcal
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Detected Items with Portion Sliders & Log Meal */}
