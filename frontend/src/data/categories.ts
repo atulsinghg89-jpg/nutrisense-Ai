@@ -6,6 +6,8 @@ export interface NutritionCategoryGuide {
   subtitle: string;
   badge: string;
   accent: "lime" | "mint";
+  imagePath: string;
+  imageAlt: string;
   summary: string;
   macroFocus: {
     label: string;
@@ -23,6 +25,8 @@ export const NUTRITION_CATEGORIES: NutritionCategoryGuide[] = [
     subtitle: "Muscle preservation, metabolic stamina & cardiovascular support",
     badge: "Educational Guidance",
     accent: "lime",
+    imagePath: "/images/persona-male.jpg",
+    imageAlt: "Adult male fitness portrait for Men's Health nutrition guide",
     summary:
       "Balances complete lean proteins, high-fiber complex carbohydrates, and unsaturated fats to sustain energy, support recovery, and promote long-term cardiometabolic health.",
     macroFocus: [
@@ -45,6 +49,8 @@ export const NUTRITION_CATEGORIES: NutritionCategoryGuide[] = [
     subtitle: "Iron & folate replenishment, bone density & balanced daily energy",
     badge: "Educational Guidance",
     accent: "mint",
+    imagePath: "/images/persona-female.jpg",
+    imageAlt: "Adult female lifestyle portrait for Women's Health nutrition guide",
     summary:
       "Emphasizes bioavailable iron, calcium, vitamin D, folate, and steady blood-sugar balance across different life stages and activity rhythms.",
     macroFocus: [
@@ -63,10 +69,12 @@ export const NUTRITION_CATEGORIES: NutritionCategoryGuide[] = [
   },
   {
     id: "baby-nutrition",
-    title: "Baby Nutrition",
-    subtitle: "Complementary feeding milestones, iron-rich textures & safe prep",
+    title: "Child & Baby Nutrition",
+    subtitle: "Growing energy, complementary feeding milestones & safe whole foods",
     badge: "Educational Guidance",
     accent: "lime",
+    imagePath: "/images/persona-child.jpg",
+    imageAlt: "Friendly child yoga wellness portrait for Child and Baby Nutrition",
     summary:
       "Focuses on nutrient-dense, age-appropriate textures during the 6–24 month complementary feeding window alongside breast milk or infant formula.",
     macroFocus: [
@@ -89,6 +97,8 @@ export const NUTRITION_CATEGORIES: NutritionCategoryGuide[] = [
     subtitle: "Gentle recovery meals, glycemic steadiness & hydration support",
     badge: "Educational Guidance",
     accent: "mint",
+    imagePath: "/images/persona-patient.jpg",
+    imageAlt: "Healthy senior wellness portrait for Patient Nutrition",
     summary:
       "Highlights easily digestible protein, steady low-glycemic carbohydrates, and sodium-conscious whole ingredients designed to support everyday recovery routines.",
     macroFocus: [

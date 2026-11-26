@@ -17,8 +17,10 @@ import type {
   ActivityLevel,
   DailyMacroTargets,
   FitnessGoal,
+  ProfileCategory,
   UserNutritionProfile,
 } from "../types/nutrition";
+import { HumanProfileSelector } from "./HumanSelectionCards";
 import { EASE_PREMIUM } from "./MotionPrimitives";
 
 interface OnboardingModalProps {
@@ -78,6 +80,30 @@ export function OnboardingModal({
 
   const calculation = calculateDailyTargetsFromProfile(draft);
   const bmi = calculateBMI(draft.heightCm, draft.weightKg);
+  const activeProfileCategory: ProfileCategory =
+    draft.userCategory ?? (draft.age < 13 ? "child" : draft.sex);
+
+  function handleSelectProfileCategory(category: ProfileCategory) {
+    setDraft((prev) => {
+      if (category === "child") {
+        return {
+          ...prev,
+          userCategory: "child",
+          age: prev.age >= 13 ? 8 : prev.age,
+          heightCm: prev.heightCm > 155 ? 128 : prev.heightCm,
+          weightKg: prev.weightKg > 48 ? 26 : prev.weightKg,
+        };
+      }
+      return {
+        ...prev,
+        userCategory: category,
+        sex: category,
+        age: prev.age < 13 ? 24 : prev.age,
+        heightCm: prev.heightCm < 140 ? 170 : prev.heightCm,
+        weightKg: prev.weightKg < 36 ? 65 : prev.weightKg,
+      };
+    });
+  }
 
   function handleFinish() {
     const finalized: UserNutritionProfile = {
@@ -110,7 +136,7 @@ export function OnboardingModal({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.96, y: 12 }}
               transition={{ duration: 0.25, ease: EASE_PREMIUM }}
-              className="relative w-full max-w-xl overflow-hidden rounded-3xl border border-white/[0.12] bg-[#121212] p-6 shadow-2xl sm:p-8"
+              className="relative max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-3xl border border-white/[0.12] bg-[#121212] p-6 shadow-2xl sm:p-8"
             >
               {/* Top Step Progress */}
               <div className="flex items-center justify-between gap-4 border-b border-white/[0.08] pb-4">
@@ -184,55 +210,44 @@ export function OnboardingModal({
                 )}
 
                 {step === 2 && (
-                  <div className="space-y-4">
-                    <h2 className="font-display text-xl font-bold text-white">
-                      Basic Body Metrics
-                    </h2>
-                    <div className="grid grid-cols-2 gap-3.5">
+                  <div className="space-y-5">
+                    <div>
+                      <h2 className="font-display text-xl font-bold text-white">
+                        Choose Profile &amp; Body Metrics
+                      </h2>
+                      <p className="mt-1 text-xs text-[#A1A1AA]">
+                        Select Male, Female, or Child for personalized nutrition calibration.
+                      </p>
+                    </div>
+
+                    <HumanProfileSelector
+                      value={activeProfileCategory}
+                      onChange={handleSelectProfileCategory}
+                      variant="modal"
+                    />
+
+                    <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label
                           htmlFor="onboard-age"
                           className="mb-1 block text-xs text-[#A1A1AA]"
                         >
-                          Age (years)
+                          Age ({activeProfileCategory === "child" ? "4–12 yrs" : "years"})
                         </label>
                         <input
                           id="onboard-age"
                           type="number"
-                          min={13}
-                          max={100}
+                          min={activeProfileCategory === "child" ? 4 : 13}
+                          max={activeProfileCategory === "child" ? 12 : 100}
                           value={draft.age}
                           onChange={(e) =>
                             setDraft((p) => ({
                               ...p,
-                              age: Number(e.target.value) || 24,
+                              age: Number(e.target.value) || (activeProfileCategory === "child" ? 8 : 24),
                             }))
                           }
                           className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3.5 py-2.5 font-mono text-sm text-white focus:border-[#A3FF12]/60 focus:outline-none"
                         />
-                      </div>
-
-                      <div>
-                        <label
-                          htmlFor="onboard-sex"
-                          className="mb-1 block text-xs text-[#A1A1AA]"
-                        >
-                          Biological Reference (BMR)
-                        </label>
-                        <select
-                          id="onboard-sex"
-                          value={draft.sex}
-                          onChange={(e) =>
-                            setDraft((p) => ({
-                              ...p,
-                              sex: e.target.value as "male" | "female",
-                            }))
-                          }
-                          className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3.5 py-2.5 text-sm text-white focus:border-[#A3FF12]/60 focus:outline-none"
-                        >
-                          <option value="male">Male</option>
-                          <option value="female">Female</option>
-                        </select>
                       </div>
 
                       <div>
@@ -245,7 +260,7 @@ export function OnboardingModal({
                         <input
                           id="onboard-height"
                           type="number"
-                          min={100}
+                          min={85}
                           max={240}
                           value={draft.heightCm}
                           onChange={(e) =>
@@ -268,7 +283,7 @@ export function OnboardingModal({
                         <input
                           id="onboard-weight"
                           type="number"
-                          min={30}
+                          min={14}
                           max={250}
                           value={draft.weightKg}
                           onChange={(e) =>

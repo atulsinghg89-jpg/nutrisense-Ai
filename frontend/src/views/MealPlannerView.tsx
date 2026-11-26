@@ -16,6 +16,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { AnimatedNumber } from "../components/MotionPrimitives";
+import { HumanProfileSelector } from "../components/HumanSelectionCards";
 import { generateAiMealPlan } from "../lib/api";
 import {
   calculateBMI,
@@ -28,6 +29,7 @@ import type {
   FitnessGoal,
   GroceryItem,
   MealPlanDay,
+  ProfileCategory,
   UserNutritionProfile,
 } from "../types/nutrition";
 import { loadGroceryList, saveGroceryList } from "./GroceryListView";
@@ -467,85 +469,103 @@ export function MealPlannerView({
             </button>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mt-4 space-y-4">
             <div>
-              <label htmlFor="plan-age" className="mb-1 block text-[11px] text-[#A1A1AA]">
-                Age
-              </label>
-              <input
-                id="plan-age"
-                type="number"
-                min={13}
-                max={100}
-                value={profileDraft.age}
-                onChange={(e) =>
-                  setProfileDraft((p) => ({
-                    ...p,
-                    age: Number(e.target.value) || 24,
-                  }))
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-[#A1A1AA]">
+                Select Profile Group
+              </p>
+              <HumanProfileSelector
+                value={
+                  profileDraft.userCategory ??
+                  (profileDraft.age < 13 ? "child" : profileDraft.sex)
                 }
-                className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3 py-2 font-mono text-xs text-white focus:border-[#A3FF12]/60 focus:outline-none"
+                onChange={(category: ProfileCategory) =>
+                  setProfileDraft((p) => {
+                    if (category === "child") {
+                      return {
+                        ...p,
+                        userCategory: "child",
+                        age: p.age >= 13 ? 8 : p.age,
+                        heightCm: p.heightCm > 155 ? 128 : p.heightCm,
+                        weightKg: p.weightKg > 48 ? 26 : p.weightKg,
+                      };
+                    }
+                    return {
+                      ...p,
+                      userCategory: category,
+                      sex: category,
+                      age: p.age < 13 ? 24 : p.age,
+                      heightCm: p.heightCm < 140 ? 170 : p.heightCm,
+                      weightKg: p.weightKg < 36 ? 65 : p.weightKg,
+                    };
+                  })
+                }
+                variant="compact"
               />
             </div>
 
-            <div>
-              <label htmlFor="plan-sex" className="mb-1 block text-[11px] text-[#A1A1AA]">
-                BMR Ref
-              </label>
-              <select
-                id="plan-sex"
-                value={profileDraft.sex}
-                onChange={(e) =>
-                  setProfileDraft((p) => ({
-                    ...p,
-                    sex: e.target.value as "male" | "female",
-                  }))
-                }
-                className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3 py-2 text-xs text-white focus:border-[#A3FF12]/60 focus:outline-none"
-              >
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-              </select>
-            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <label htmlFor="plan-age" className="mb-1 block text-[11px] text-[#A1A1AA]">
+                  Age ({profileDraft.userCategory === "child" ? "4–12 yrs" : "years"})
+                </label>
+                <input
+                  id="plan-age"
+                  type="number"
+                  min={profileDraft.userCategory === "child" ? 4 : 13}
+                  max={profileDraft.userCategory === "child" ? 12 : 100}
+                  value={profileDraft.age}
+                  onChange={(e) =>
+                    setProfileDraft((p) => ({
+                      ...p,
+                      age:
+                        Number(e.target.value) ||
+                        (p.userCategory === "child" ? 8 : 24),
+                    }))
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3 py-2 font-mono text-xs text-white focus:border-[#A3FF12]/60 focus:outline-none"
+                />
+              </div>
 
-            <div>
-              <label htmlFor="plan-height" className="mb-1 block text-[11px] text-[#A1A1AA]">
-                Height (cm)
-              </label>
-              <input
-                id="plan-height"
-                type="number"
-                min={100}
-                max={240}
-                value={profileDraft.heightCm}
-                onChange={(e) =>
-                  setProfileDraft((p) => ({
-                    ...p,
-                    heightCm: Number(e.target.value) || 170,
-                  }))
-                }
-                className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3 py-2 font-mono text-xs text-white focus:border-[#A3FF12]/60 focus:outline-none"
-              />
-            </div>
+              <div>
+                <label htmlFor="plan-height" className="mb-1 block text-[11px] text-[#A1A1AA]">
+                  Height (cm)
+                </label>
+                <input
+                  id="plan-height"
+                  type="number"
+                  min={85}
+                  max={240}
+                  value={profileDraft.heightCm}
+                  onChange={(e) =>
+                    setProfileDraft((p) => ({
+                      ...p,
+                      heightCm: Number(e.target.value) || 170,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3 py-2 font-mono text-xs text-white focus:border-[#A3FF12]/60 focus:outline-none"
+                />
+              </div>
 
-            <div>
-              <label htmlFor="plan-weight" className="mb-1 block text-[11px] text-[#A1A1AA]">
-                Weight (kg)
-              </label>
-              <input
-                id="plan-weight"
-                type="number"
-                min={30}
-                max={250}
-                value={profileDraft.weightKg}
-                onChange={(e) =>
-                  setProfileDraft((p) => ({
-                    ...p,
-                    weightKg: Number(e.target.value) || 68,
-                  }))
-                }
-                className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3 py-2 font-mono text-xs text-white focus:border-[#A3FF12]/60 focus:outline-none"
-              />
+              <div>
+                <label htmlFor="plan-weight" className="mb-1 block text-[11px] text-[#A1A1AA]">
+                  Weight (kg)
+                </label>
+                <input
+                  id="plan-weight"
+                  type="number"
+                  min={14}
+                  max={250}
+                  value={profileDraft.weightKg}
+                  onChange={(e) =>
+                    setProfileDraft((p) => ({
+                      ...p,
+                      weightKg: Number(e.target.value) || 68,
+                    }))
+                  }
+                  className="w-full rounded-xl border border-white/10 bg-[#0A0A0A] px-3 py-2 font-mono text-xs text-white focus:border-[#A3FF12]/60 focus:outline-none"
+                />
+              </div>
             </div>
           </div>
 

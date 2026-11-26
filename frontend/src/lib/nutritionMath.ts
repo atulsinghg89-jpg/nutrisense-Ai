@@ -11,6 +11,7 @@ export const DEFAULT_USER_PROFILE: UserNutritionProfile = {
   name: "",
   age: 24,
   sex: "male",
+  userCategory: "male",
   heightCm: 172,
   weightKg: 68,
   activityLevel: "moderate",
@@ -96,31 +97,43 @@ export function calculateBMI(heightCm: number, weightKg: number): BMIResult {
   return { bmi, category, scalePercent, explanation };
 }
 
-/** Validated Mifflin-St Jeor BMR + TDEE daily macro target estimate */
+/** Validated Mifflin-St Jeor BMR + TDEE daily macro target estimate (with safe child scaling) */
 export function calculateDailyTargetsFromProfile(
   profile: UserNutritionProfile,
 ): { bmr: number; tdee: number; targets: DailyMacroTargets } {
-  const safeWeight = Math.max(30, Math.min(250, profile.weightKg));
-  const safeHeight = Math.max(100, Math.min(240, profile.heightCm));
-  const safeAge = Math.max(13, Math.min(100, profile.age));
+  const isChild = profile.userCategory === "child" || profile.age < 13;
+  const safeWeight = isChild
+    ? Math.max(14, Math.min(90, profile.weightKg))
+    : Math.max(30, Math.min(250, profile.weightKg));
+  const safeHeight = isChild
+    ? Math.max(85, Math.min(180, profile.heightCm))
+    : Math.max(100, Math.min(240, profile.heightCm));
+  const safeAge = isChild
+    ? Math.max(4, Math.min(12, profile.age))
+    : Math.max(13, Math.min(100, profile.age));
 
-  const s = profile.sex === "male" ? 5 : -161;
+  const s = isChild ? -78 : profile.sex === "male" ? 5 : -161;
   const bmr = Math.round(10 * safeWeight + 6.25 * safeHeight - 5 * safeAge + s);
   const tdee = Math.round(bmr * (ACTIVITY_MULTIPLIERS[profile.activityLevel] ?? 1.55));
-  const targetCalories = Math.max(1200, tdee + (GOAL_CALORIE_OFFSET[profile.fitnessGoal] ?? 0));
+  const minCalories = isChild ? 1050 : 1200;
+  const targetCalories = Math.max(
+    minCalories,
+    tdee + (isChild ? 0 : (GOAL_CALORIE_OFFSET[profile.fitnessGoal] ?? 0)),
+  );
 
-  const proteinFactor =
-    profile.fitnessGoal === "muscle_building"
+  const proteinFactor = isChild
+    ? 1.15
+    : profile.fitnessGoal === "muscle_building"
       ? 1.9
       : profile.fitnessGoal === "weight_loss"
         ? 1.7
         : 1.5;
 
-  const proteinGrams = Math.round(safeWeight * proteinFactor);
-  const fatCalories = Math.round(targetCalories * 0.27);
-  const fatGrams = Math.max(35, Math.round(fatCalories / 9));
+  const proteinGrams = Math.max(20, Math.round(safeWeight * proteinFactor));
+  const fatCalories = Math.round(targetCalories * (isChild ? 0.3 : 0.27));
+  const fatGrams = Math.max(28, Math.round(fatCalories / 9));
   const remainingCarbCalories = Math.max(
-    200,
+    180,
     targetCalories - proteinGrams * 4 - fatGrams * 9,
   );
   const carbGrams = Math.round(remainingCarbCalories / 4);

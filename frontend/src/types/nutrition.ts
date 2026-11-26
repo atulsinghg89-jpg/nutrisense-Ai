@@ -49,10 +49,13 @@ export type ActivityLevel =
   | "active"
   | "very_active";
 
+export type ProfileCategory = "male" | "female" | "child";
+
 export interface UserNutritionProfile {
   name: string;
   age: number;
   sex: "male" | "female";
+  userCategory?: ProfileCategory;
   heightCm: number;
   weightKg: number;
   activityLevel: ActivityLevel;

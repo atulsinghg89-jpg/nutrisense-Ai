@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   Baby,
@@ -9,6 +9,7 @@ import {
   Sparkles,
   User,
 } from "lucide-react";
+import { HumanCategorySelector } from "../components/HumanSelectionCards";
 import {
   EASE_PREMIUM,
   staggerContainerVariants,
@@ -60,14 +61,22 @@ function loadCheckedHabits(): Record<string, boolean> {
   }
 }
 
-export function CategoriesView() {
+interface CategoriesViewProps {
+  initialCategory?: "all" | NutritionCategoryGuide["id"];
+}
+
+export function CategoriesView({ initialCategory = "all" }: CategoriesViewProps) {
   const prefersReduced = useReducedMotion();
   const [selectedId, setSelectedId] = useState<
     "all" | NutritionCategoryGuide["id"]
-  >("all");
+  >(initialCategory);
   const [checkedHabits, setCheckedHabits] = useState<Record<string, boolean>>(
     () => loadCheckedHabits(),
   );
+
+  useEffect(() => {
+    setSelectedId(initialCategory);
+  }, [initialCategory]);
 
   const visibleCategories =
     selectedId === "all"
@@ -151,6 +160,25 @@ export function CategoriesView() {
         </div>
       </div>
 
+      {/* Human Portrait Category Selector (Male / Female / Child & Baby / Patient Care) */}
+      <section aria-label="Select Nutrition Category" className="space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#34D399]">
+            Select Life-Stage &amp; User Profile
+          </p>
+          <span className="text-xs text-[#A1A1AA]">
+            Click any portrait card to filter tailored nutrition guidelines
+          </span>
+        </div>
+        <HumanCategorySelector
+          selectedId={selectedId}
+          onSelect={(catId) =>
+            setSelectedId((prev) => (prev === catId ? "all" : catId))
+          }
+          onShowAll={() => setSelectedId("all")}
+        />
+      </section>
+
       {/* Global Educational Disclaimer */}
       <div className="flex items-start gap-3.5 rounded-2xl border border-[#34D399]/25 bg-[#121212] px-5 py-4 text-sm">
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#34D399]/10 text-[#34D399]">
@@ -191,20 +219,28 @@ export function CategoriesView() {
               className="flex flex-col justify-between overflow-hidden rounded-2xl border border-white/[0.08] bg-[#121212] shadow-xl transition-colors hover:border-white/20"
             >
               <div>
-                {/* Distinct Accent Card Header */}
+                {/* Distinct Accent Card Header with Human Portrait Thumbnail */}
                 <div
                   className={`border-b border-white/[0.07] bg-gradient-to-br ${meta.gradient} p-6`}
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-center gap-3.5">
-                      <div
-                        className={`flex h-12 w-12 items-center justify-center rounded-2xl border shadow-lg ${
-                          isLime
-                            ? "border-[#A3FF12]/35 bg-[#A3FF12]/15 text-[#A3FF12]"
-                            : "border-[#34D399]/35 bg-[#34D399]/15 text-[#34D399]"
-                        }`}
-                      >
-                        <Icon className="h-5 w-5" />
+                      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl border border-white/15 bg-[#0A0A0A] shadow-lg">
+                        <img
+                          src={category.imagePath}
+                          alt={category.imageAlt}
+                          loading="lazy"
+                          className="h-full w-full object-cover object-top"
+                        />
+                        <span
+                          className={`absolute right-0.5 bottom-0.5 flex h-5 w-5 items-center justify-center rounded-lg border ${
+                            isLime
+                              ? "border-[#A3FF12]/40 bg-[#050706]/90 text-[#A3FF12]"
+                              : "border-[#34D399]/40 bg-[#050706]/90 text-[#34D399]"
+                          }`}
+                        >
+                          <Icon className="h-3 w-3" />
+                        </span>
                       </div>
                       <div>
                         <p className="font-mono text-[11px] font-semibold uppercase tracking-wider text-[#A1A1AA]">

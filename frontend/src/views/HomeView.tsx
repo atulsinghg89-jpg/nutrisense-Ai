@@ -9,12 +9,10 @@ import {
 import {
   Activity,
   ArrowRight,
-  Baby,
   Bot,
   CalendarDays,
   Camera,
   Flame,
-  HeartHandshake,
   HeartPulse,
   IndianRupee,
   LayoutDashboard,
@@ -24,12 +22,12 @@ import {
   SlidersHorizontal,
   Sparkles,
   TrendingDown,
-  User,
   Utensils,
   X,
 } from "lucide-react";
 import { CircuitLines } from "../components/CircuitLines";
 import { FloatingFoodIngredients } from "../components/FloatingFoodIngredients";
+import { HumanCategorySelector } from "../components/HumanSelectionCards";
 import { MacroProgressBars } from "../components/MacroProgressBars";
 import {
   AnimatedNumber,
@@ -41,6 +39,7 @@ import {
   staggerItemVariants,
 } from "../components/MotionPrimitives";
 import { ScrollTimeline } from "../components/ScrollTimeline";
+import type { NutritionCategoryGuide } from "../data/categories";
 import type {
   AppView,
   DailyMacroTargets,
@@ -50,6 +49,7 @@ import type {
 
 interface HomeViewProps {
   onNavigate: (view: AppView) => void;
+  onSelectCategory?: (categoryId: NutritionCategoryGuide["id"]) => void;
   onOpenDashboardGoals: () => void;
   onOpenAssistant: () => void;
   onOpenOnboarding: () => void;
@@ -124,6 +124,7 @@ const BENEFITS = [
 
 export function HomeView({
   onNavigate,
+  onSelectCategory,
   onOpenDashboardGoals,
   onOpenAssistant,
   onOpenOnboarding,
@@ -1008,49 +1009,22 @@ export function HomeView({
             })}
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              {
-                title: "Men's Health",
-                desc: "Lean protein & metabolic balance",
-                icon: User,
-              },
-              {
-                title: "Women's Health",
-                desc: "Iron, folate & steady daily energy",
-                icon: Sparkles,
-              },
-              {
-                title: "Baby Nutrition",
-                desc: "6–24 month safe feeding guides",
-                icon: Baby,
-              },
-              {
-                title: "Patient Nutrition",
-                desc: "Gentle recovery & glycemic care",
-                icon: HeartHandshake,
-              },
-            ].map((cat) => {
-              const Icon = cat.icon;
-              return (
-                <button
-                  key={cat.title}
-                  type="button"
-                  onClick={() => onNavigate("categories")}
-                  className="group flex items-center gap-3.5 rounded-2xl border border-white/[0.08] bg-[#171717]/70 px-4 py-3.5 text-left transition hover:border-[#34D399]/40 hover:bg-[#171717]"
-                >
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#0A0A0A] text-[#A3FF12] transition group-hover:scale-105">
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="truncate font-display text-sm font-semibold text-white group-hover:text-[#34D399]">
-                      {cat.title}
-                    </p>
-                    <p className="truncate text-xs text-[#A1A1AA]">{cat.desc}</p>
-                  </div>
-                </button>
-              );
-            })}
+          {/* Human Portrait Category Cards Preview */}
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[#34D399]">
+              Personalized Life-Stage Guides
+            </p>
+            <HumanCategorySelector
+              selectedId="all"
+              showAllMode={false}
+              onSelect={(categoryId) => {
+                if (onSelectCategory) {
+                  onSelectCategory(categoryId);
+                } else {
+                  onNavigate("categories");
+                }
+              }}
+            />
           </div>
         </section>
       </RevealSection>

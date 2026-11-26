@@ -6,6 +6,7 @@ import { Navbar } from "./components/Navbar";
 import { NutriAssistantDrawer } from "./components/NutriAssistantDrawer";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { Preloader } from "./components/Preloader";
+import type { NutritionCategoryGuide } from "./data/categories";
 import { checkBackendHealth, fetchMealLogs, round2 } from "./lib/api";
 import { loadUserProfile, saveUserProfile } from "./lib/nutritionMath";
 import type {
@@ -129,6 +130,9 @@ export function App() {
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [openGoalsTrigger, setOpenGoalsTrigger] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<
+    "all" | NutritionCategoryGuide["id"]
+  >("all");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
 
@@ -309,6 +313,10 @@ export function App() {
               {activeView === "home" && (
                 <HomeView
                   onNavigate={handleNavigate}
+                  onSelectCategory={(categoryId) => {
+                    setSelectedCategory(categoryId);
+                    handleNavigate("categories");
+                  }}
                   onOpenDashboardGoals={handleOpenDashboardGoals}
                   onOpenAssistant={() => setAssistantOpen(true)}
                   onOpenOnboarding={() => setOnboardingOpen(true)}
@@ -345,7 +353,9 @@ export function App() {
                 />
               )}
 
-              {activeView === "categories" && <CategoriesView />}
+              {activeView === "categories" && (
+                <CategoriesView initialCategory={selectedCategory} />
+              )}
 
               {activeView === "dashboard" && (
                 <DashboardView
