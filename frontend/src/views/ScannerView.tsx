@@ -6,6 +6,7 @@ import {
   type ChangeEvent,
   type DragEvent,
 } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   AlertCircle,
   ArrowRight,
@@ -15,12 +16,14 @@ import {
   Loader2,
   RotateCcw,
   Save,
+  ScanLine,
   Sparkles,
   Upload,
   Video,
   X,
 } from "lucide-react";
 import { MacroProgressBars } from "../components/MacroProgressBars";
+import { AnimatedNumber, EASE_PREMIUM } from "../components/MotionPrimitives";
 import {
   computeTotals,
   createMealLog,
@@ -63,6 +66,7 @@ export function ScannerView({
   onNavigate,
   onMealLogged,
 }: ScannerViewProps) {
+  const prefersReduced = useReducedMotion();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraCaptureInputRef = useRef<HTMLInputElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -137,7 +141,7 @@ export function ScannerView({
     setCameraError(null);
     if (!navigator.mediaDevices?.getUserMedia) {
       setCameraError(
-        "Live webcam access is unavailable in this browser. Use 'Take Photo' or 'Upload Image' instead.",
+        "Live webcam access is unavailable in this browser. Use 'Take Photo' or 'Upload' instead.",
       );
       return;
     }
@@ -366,137 +370,224 @@ export function ScannerView({
   return (
     <div className="space-y-8 pb-10">
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#A3FF12]/30 bg-[#A3FF12]/10 px-3 py-1 text-xs font-medium text-[#A3FF12]">
-            <Camera className="h-3.5 w-3.5" />
-            POST /api/scan
-          </span>
-          <h1 className="mt-3 font-display text-3xl font-bold tracking-tight text-white">
-            AI Food Scanner
-          </h1>
-          <p className="mt-1.5 text-sm text-zinc-400">
-            Upload a meal photo or use your camera to detect items, adjust portions in grams, and
-            inspect Calorie, Protein, Carbs, and Fat bars.
-          </p>
-        </div>
+      <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-[#121212] px-6 py-6 sm:px-8">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute -top-20 right-0 h-56 w-56 rounded-full bg-[#A3FF12]/10 blur-[90px]"
+        />
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#A3FF12]/30 bg-[#A3FF12]/10 px-3 py-1 text-xs font-semibold text-[#A3FF12]">
+              <ScanLine className="h-3.5 w-3.5" />
+              Gemini Vision • POST /api/scan
+            </span>
+            <h1 className="mt-3 font-display text-3xl font-extrabold tracking-tight text-white">
+              AI Food Scanner
+            </h1>
+            <p className="mt-1.5 max-w-2xl text-sm text-[#A1A1AA]">
+              Upload or capture a meal photo to detect every food item, fine-tune
+              portions with live gram sliders, inspect macro bars, and save to
+              your Dashboard.
+            </p>
+          </div>
 
-        {scanSession && scanSession.alternatives.length > 0 && (
-          <button
-            type="button"
-            onClick={() => onNavigate("alternatives")}
-            className="inline-flex items-center gap-2 rounded-full border border-[#34D399]/35 bg-[#34D399]/10 px-4 py-2 text-sm font-semibold text-[#34D399] transition hover:bg-[#34D399]/20"
-          >
-            <Sparkles className="h-4 w-4" />
-            <span>View {scanSession.alternatives.length} Healthier Swaps</span>
-            <ArrowRight className="h-4 w-4" />
-          </button>
-        )}
+          {scanSession && scanSession.alternatives.length > 0 && (
+            <motion.button
+              type="button"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => onNavigate("alternatives")}
+              className="inline-flex items-center gap-2 rounded-full border border-[#34D399]/35 bg-[#34D399]/10 px-4 py-2.5 text-sm font-semibold text-[#34D399] transition hover:bg-[#34D399]/20"
+            >
+              <Sparkles className="h-4 w-4" />
+              <span>View {scanSession.alternatives.length} Healthier Swaps</span>
+              <ArrowRight className="h-4 w-4" />
+            </motion.button>
+          )}
+        </div>
       </div>
 
       {/* Main Two-Column Grid */}
       <div className="grid gap-6 lg:grid-cols-12">
-        {/* Left Column: Image Upload / Camera + Scan Trigger */}
-        <div className="space-y-5 lg:col-span-5">
-          <div className="rounded-2xl border border-white/[0.08] bg-[#121212] p-5">
+        {/* Left Column: Image Upload / Camera + Scan Trigger + Macro Progress */}
+        <div className="space-y-6 lg:col-span-5">
+          <div className="rounded-2xl border border-white/[0.08] bg-[#121212] p-5 shadow-xl">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="font-display text-base font-semibold text-white">
-                Meal Image Input
-              </h2>
+              <div className="flex items-center gap-2">
+                <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#A3FF12]/10 text-[#A3FF12]">
+                  <Camera className="h-4 w-4" />
+                </span>
+                <h2 className="font-display text-base font-semibold text-white">
+                  Meal Image Input
+                </h2>
+              </div>
               {fileSizeLabel && (
-                <span className="rounded-md bg-white/[0.06] px-2 py-0.5 font-mono text-[11px] text-zinc-300">
+                <span className="rounded-lg border border-white/10 bg-[#171717] px-2.5 py-0.5 font-mono text-[11px] text-zinc-300">
                   {fileSizeLabel}
                 </span>
               )}
             </div>
 
-            {/* Live Webcam View */}
-            {cameraOpen ? (
-              <div className="space-y-3">
-                <div className="relative overflow-hidden rounded-xl border border-[#A3FF12]/40 bg-black">
-                  <video
-                    ref={videoRef}
-                    playsInline
-                    muted
-                    className="aspect-[4/3] w-full object-cover"
-                  />
-                  <button
-                    type="button"
-                    onClick={stopWebcamStream}
-                    aria-label="Close camera"
-                    className="absolute top-3 right-3 rounded-full bg-black/70 p-2 text-white hover:bg-black"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  onClick={captureWebcamFrame}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#A3FF12] px-4 py-3 text-sm font-bold text-[#0A0A0A] transition hover:bg-[#b5ff3b]"
+            {/* Live Webcam View or Animated Dropzone */}
+            <AnimatePresence mode="wait">
+              {cameraOpen ? (
+                <motion.div
+                  key="webcam"
+                  initial={{ opacity: 0, scale: 0.98 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
+                  transition={{ duration: 0.25, ease: EASE_PREMIUM }}
+                  className="space-y-3"
                 >
-                  <Camera className="h-4 w-4" />
-                  <span>Capture Meal Photo</span>
-                </button>
-              </div>
-            ) : (
-              /* Dropzone / Preview */
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setIsDragging(true);
-                }}
-                onDragLeave={() => setIsDragging(false)}
-                onDrop={handleDrop}
-                className={`relative overflow-hidden rounded-xl border border-dashed transition ${
-                  isDragging
-                    ? "border-[#A3FF12] bg-[#A3FF12]/10"
-                    : "border-white/15 bg-[#0A0A0A]"
-                }`}
-              >
-                {previewUrl ? (
-                  <div className="relative">
-                    <img
-                      src={previewUrl}
-                      alt="Selected meal preview"
+                  <div className="relative overflow-hidden rounded-2xl border border-[#A3FF12]/45 bg-black">
+                    <video
+                      ref={videoRef}
+                      playsInline
+                      muted
                       className="aspect-[4/3] w-full object-cover"
                     />
-                    {scanning && (
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-[#0A0A0A]/75 backdrop-blur-xs">
-                        <Loader2 className="h-8 w-8 animate-spin text-[#A3FF12]" />
-                        <p className="text-sm font-medium text-white">
-                          Analyzing ingredients &amp; macros...
-                        </p>
-                      </div>
-                    )}
+                    {/* Viewfinder Reticle */}
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-4"
+                    >
+                      <span className="absolute top-0 left-0 h-5 w-5 rounded-tl-md border-t-2 border-l-2 border-[#A3FF12]" />
+                      <span className="absolute top-0 right-0 h-5 w-5 rounded-tr-md border-t-2 border-r-2 border-[#A3FF12]" />
+                      <span className="absolute bottom-0 left-0 h-5 w-5 rounded-bl-md border-b-2 border-l-2 border-[#34D399]" />
+                      <span className="absolute right-0 bottom-0 h-5 w-5 rounded-br-md border-r-2 border-b-2 border-[#34D399]" />
+                    </div>
                     <button
                       type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="absolute right-3 bottom-3 rounded-lg border border-white/15 bg-[#0A0A0A]/85 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-md transition hover:border-[#A3FF12]/50"
+                      onClick={stopWebcamStream}
+                      aria-label="Close camera"
+                      className="absolute top-3 right-3 rounded-full bg-black/75 p-2 text-white backdrop-blur-md transition hover:bg-black"
                     >
-                      Change Photo
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
-                ) : (
-                  <button
+                  <motion.button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-3 p-6 text-center transition hover:bg-white/[0.02]"
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={captureWebcamFrame}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#A3FF12] px-4 py-3 text-sm font-bold text-[#0A0A0A] shadow-[0_0_24px_rgba(163,255,18,0.25)] transition hover:bg-[#b5ff3b]"
                   >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#A3FF12]/25 bg-[#A3FF12]/10 text-[#A3FF12]">
-                      <ImagePlus className="h-6 w-6" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-white">
-                        Drop your food photo here, or browse
-                      </p>
-                      <p className="mt-1 text-xs text-zinc-400">
-                        JPEG, PNG, WEBP, GIF, or HEIC up to 20 MB
-                      </p>
-                    </div>
-                  </button>
-                )}
-              </div>
-            )}
+                    <Camera className="h-4 w-4" />
+                    <span>Capture Meal Photo</span>
+                  </motion.button>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="dropzone"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragging(true);
+                  }}
+                  onDragLeave={() => setIsDragging(false)}
+                  onDrop={handleDrop}
+                  className={`relative overflow-hidden rounded-2xl border-2 border-dashed transition-all duration-200 ${
+                    isDragging
+                      ? "scale-[1.01] border-[#A3FF12] bg-[#A3FF12]/10 shadow-[0_0_32px_rgba(163,255,18,0.18)]"
+                      : previewUrl
+                        ? "border-white/15 bg-[#0A0A0A]"
+                        : "border-white/15 bg-[#0A0A0A] hover:border-[#34D399]/50"
+                  }`}
+                >
+                  <AnimatePresence mode="wait">
+                    {previewUrl ? (
+                      <motion.div
+                        key={previewUrl}
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.3, ease: EASE_PREMIUM }}
+                        className="relative"
+                      >
+                        <img
+                          src={previewUrl}
+                          alt="Selected meal preview"
+                          className="aspect-[4/3] w-full object-cover"
+                        />
+
+                        {/* Animated AI Scanning Overlay */}
+                        {scanning && (
+                          <div className="absolute inset-0 overflow-hidden bg-[#0A0A0A]/70 backdrop-blur-[2px]">
+                            {/* Laser Scan Beam */}
+                            <div
+                              aria-hidden="true"
+                              className="animate-scan-beam absolute inset-x-0 h-0.5 bg-gradient-to-r from-transparent via-[#A3FF12] to-transparent shadow-[0_0_20px_4px_rgba(163,255,18,0.65)]"
+                            />
+                            {/* Corner Brackets */}
+                            <div
+                              aria-hidden="true"
+                              className="pointer-events-none absolute inset-4"
+                            >
+                              <span className="absolute top-0 left-0 h-6 w-6 rounded-tl-lg border-t-2 border-l-2 border-[#A3FF12]" />
+                              <span className="absolute top-0 right-0 h-6 w-6 rounded-tr-lg border-t-2 border-r-2 border-[#A3FF12]" />
+                              <span className="absolute bottom-0 left-0 h-6 w-6 rounded-bl-lg border-b-2 border-l-2 border-[#34D399]" />
+                              <span className="absolute right-0 bottom-0 h-6 w-6 rounded-br-lg border-r-2 border-b-2 border-[#34D399]" />
+                            </div>
+                            <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center">
+                              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#A3FF12]/40 bg-[#0A0A0A]/90 shadow-[0_0_24px_rgba(163,255,18,0.3)]">
+                                <Loader2 className="h-6 w-6 animate-spin text-[#A3FF12]" />
+                              </div>
+                              <div className="rounded-xl border border-white/10 bg-[#0A0A0A]/85 px-4 py-2.5">
+                                <p className="text-sm font-semibold text-white">
+                                  Analyzing ingredients &amp; macros...
+                                </p>
+                                <p className="mt-0.5 font-mono text-[11px] text-[#34D399]">
+                                  Gemini Vision • Detecting portions &amp; 3 swaps
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {!scanning && (
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="absolute right-3 bottom-3 rounded-xl border border-white/15 bg-[#0A0A0A]/85 px-3 py-1.5 text-xs font-semibold text-white backdrop-blur-md transition hover:border-[#A3FF12]/50"
+                          >
+                            Change Photo
+                          </button>
+                        )}
+                      </motion.div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="group flex aspect-[4/3] w-full flex-col items-center justify-center gap-3.5 p-6 text-center transition hover:bg-white/[0.02]"
+                      >
+                        <motion.div
+                          animate={
+                            isDragging && !prefersReduced
+                              ? { scale: 1.12, y: -4 }
+                              : { scale: 1, y: 0 }
+                          }
+                          className="flex h-14 w-14 items-center justify-center rounded-2xl border border-[#A3FF12]/30 bg-[#A3FF12]/10 text-[#A3FF12] shadow-[0_0_24px_rgba(163,255,18,0.12)] transition group-hover:border-[#A3FF12]/60"
+                        >
+                          <ImagePlus className="h-6 w-6" />
+                        </motion.div>
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            {isDragging
+                              ? "Release to drop your food photo"
+                              : "Drop your food photo here, or browse"}
+                          </p>
+                          <p className="mt-1 text-xs text-[#A1A1AA]">
+                            JPEG, PNG, WEBP, GIF, or HEIC up to 20 MB
+                          </p>
+                        </div>
+                      </button>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Hidden File + Mobile Camera Inputs */}
             <input
@@ -517,32 +608,42 @@ export function ScannerView({
 
             {/* Upload / Camera Controls */}
             <div className="mt-4 grid grid-cols-3 gap-2.5">
-              <button
+              <motion.button
                 type="button"
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-xs font-medium text-white transition hover:border-white/25 hover:bg-white/[0.08]"
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-[#171717] px-3 py-2.5 text-xs font-medium text-white transition hover:border-white/25 hover:bg-white/[0.08]"
               >
                 <Upload className="h-3.5 w-3.5 text-[#34D399]" />
                 <span>Upload</span>
-              </button>
+              </motion.button>
 
-              <button
+              <motion.button
                 type="button"
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={() => cameraCaptureInputRef.current?.click()}
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-xs font-medium text-white transition hover:border-white/25 hover:bg-white/[0.08]"
+                className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-[#171717] px-3 py-2.5 text-xs font-medium text-white transition hover:border-white/25 hover:bg-white/[0.08]"
               >
                 <Camera className="h-3.5 w-3.5 text-[#A3FF12]" />
                 <span>Take Photo</span>
-              </button>
+              </motion.button>
 
-              <button
+              <motion.button
                 type="button"
+                whileHover={{ y: -1 }}
+                whileTap={{ scale: 0.97 }}
                 onClick={cameraOpen ? stopWebcamStream : startWebcamStream}
-                className="flex items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2.5 text-xs font-medium text-white transition hover:border-white/25 hover:bg-white/[0.08]"
+                className={`flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2.5 text-xs font-medium transition ${
+                  cameraOpen
+                    ? "border-[#A3FF12]/40 bg-[#A3FF12]/15 text-[#A3FF12]"
+                    : "border-white/10 bg-[#171717] text-white hover:border-white/25 hover:bg-white/[0.08]"
+                }`}
               >
                 <Video className="h-3.5 w-3.5 text-[#34D399]" />
                 <span>{cameraOpen ? "Stop Cam" : "Live Cam"}</span>
-              </button>
+              </motion.button>
             </div>
 
             {cameraError && (
@@ -559,11 +660,13 @@ export function ScannerView({
               </div>
             )}
 
-            <button
+            <motion.button
               type="button"
+              whileHover={selectedFile && !scanning ? { scale: 1.015 } : undefined}
+              whileTap={selectedFile && !scanning ? { scale: 0.985 } : undefined}
               onClick={handleAnalyzeMeal}
               disabled={scanning || !selectedFile}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#A3FF12] px-5 py-3.5 text-sm font-bold text-[#0A0A0A] shadow-[0_0_24px_rgba(163,255,18,0.22)] transition hover:bg-[#b5ff3b] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-[#A3FF12] px-5 py-3.5 text-sm font-bold text-[#0A0A0A] shadow-[0_0_26px_rgba(163,255,18,0.24)] transition hover:bg-[#b5ff3b] disabled:cursor-not-allowed disabled:opacity-45 disabled:shadow-none"
             >
               {scanning ? (
                 <>
@@ -576,22 +679,22 @@ export function ScannerView({
                   <span>Analyze Meal</span>
                 </>
               )}
-            </button>
+            </motion.button>
           </div>
 
           {/* Macro Progress Bars Panel */}
-          <div className="rounded-2xl border border-white/[0.08] bg-[#121212] p-5">
+          <div className="rounded-2xl border border-white/[0.08] bg-[#121212] p-5 shadow-xl">
             <div className="mb-4 flex items-center justify-between gap-2">
               <div>
                 <h2 className="font-display text-base font-semibold text-white">
                   Meal Macro Progress
                 </h2>
-                <p className="text-xs text-zinc-400">
+                <p className="text-xs text-[#A1A1AA]">
                   Measured against your {dailyTargets.calories.toLocaleString()} kcal daily goal
                 </p>
               </div>
-              <span className="rounded-full border border-white/10 bg-[#0A0A0A] px-3 py-1 font-mono text-xs font-medium text-[#34D399] tabular-nums">
-                {totals.portion_grams.toFixed(0)} g total
+              <span className="rounded-full border border-white/10 bg-[#0A0A0A] px-3 py-1 font-mono text-xs font-semibold text-[#34D399] tabular-nums">
+                <AnimatedNumber value={totals.portion_grams} suffix=" g total" />
               </span>
             </div>
 
@@ -606,61 +709,63 @@ export function ScannerView({
         </div>
 
         {/* Right Column: Detected Items with Portion Sliders & Log Meal */}
-        <div className="space-y-5 lg:col-span-7">
-          <div className="rounded-2xl border border-white/[0.08] bg-[#121212] p-5 sm:p-6">
+        <div className="space-y-6 lg:col-span-7">
+          <div className="rounded-2xl border border-white/[0.08] bg-[#121212] p-5 shadow-xl sm:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/[0.08] pb-4">
               <div>
-                <h2 className="font-display text-lg font-semibold text-white">
+                <h2 className="font-display text-lg font-bold text-white">
                   Detected Food Items &amp; Portion Sliders
                 </h2>
-                <p className="mt-0.5 text-xs text-zinc-400">
+                <p className="mt-0.5 text-xs text-[#A1A1AA]">
                   Drag any slider to edit portion size in grams; macros recalculate live.
                 </p>
               </div>
 
               <div className="flex items-center gap-2.5">
                 {recalcStatus === "syncing" && (
-                  <span className="inline-flex items-center gap-1.5 text-xs text-zinc-400">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#171717] px-2.5 py-1 text-xs text-[#A1A1AA]">
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-[#A3FF12]" />
                     Syncing...
                   </span>
                 )}
                 {recalcStatus === "synced" && (
-                  <span className="inline-flex items-center gap-1 text-xs text-[#34D399]">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#34D399]/10 px-2.5 py-1 text-xs font-medium text-[#34D399]">
                     <Check className="h-3.5 w-3.5" />
                     Synced
                   </span>
                 )}
                 {items.length > 0 && (
-                  <button
+                  <motion.button
                     type="button"
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
                     onClick={handleResetAllPortions}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-[#171717] px-3 py-1.5 text-xs font-medium text-zinc-300 transition hover:border-white/25 hover:text-white"
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
                     Reset All
-                  </button>
+                  </motion.button>
                 )}
               </div>
             </div>
 
             {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-14 text-center">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-[#0A0A0A] text-zinc-500">
-                  <Sparkles className="h-6 w-6" />
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-[#0A0A0A] text-[#34D399]">
+                  <Sparkles className="h-7 w-7" />
                 </div>
-                <p className="mt-4 font-display text-base font-semibold text-white">
-                  No food scanned yet
+                <p className="mt-5 font-display text-lg font-semibold text-white">
+                  {scanning ? "Analyzing Your Plate..." : "No food scanned yet"}
                 </p>
-                <p className="mt-1.5 max-w-sm text-sm text-zinc-400">
-                  Select or capture a food image on the left and click{" "}
-                  <span className="text-[#A3FF12]">Analyze Meal</span> to populate detected items
-                  with interactive portion sliders.
+                <p className="mt-1.5 max-w-sm text-sm text-[#A1A1AA]">
+                  {scanning
+                    ? "Gemini Vision is identifying items and calculating per-100g nutrition."
+                    : "Select or capture a food image on the left and click Analyze Meal to populate detected items with interactive portion sliders."}
                 </p>
               </div>
             ) : (
               <div className="mt-5 space-y-4">
-                {items.map((item) => {
+                {items.map((item, idx) => {
                   const sliderMax = Math.max(
                     500,
                     Math.ceil((item.initial_portion_grams * 2.5) / 10) * 10,
@@ -671,16 +776,28 @@ export function ScannerView({
                   );
 
                   return (
-                    <div
+                    <motion.div
                       key={item.id}
-                      className="rounded-xl border border-white/[0.08] bg-[#0A0A0A] p-4 transition hover:border-white/15"
+                      initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{
+                        duration: 0.35,
+                        delay: prefersReduced ? 0 : idx * 0.05,
+                        ease: EASE_PREMIUM,
+                      }}
+                      className="rounded-2xl border border-white/[0.08] bg-[#0A0A0A] p-4 transition-colors hover:border-white/20"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <h3 className="font-display text-base font-semibold text-white">
-                            {item.name}
-                          </h3>
-                          <p className="mt-0.5 font-mono text-[11px] text-zinc-500 tabular-nums">
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-[11px] font-semibold text-[#34D399]">
+                              #{idx + 1}
+                            </span>
+                            <h3 className="font-display text-base font-bold text-white">
+                              {item.name}
+                            </h3>
+                          </div>
+                          <p className="mt-1 font-mono text-[11px] text-zinc-500 tabular-nums">
                             Base: {item.calories_per_100g} kcal / 100g • P{" "}
                             {item.protein_per_100g}g • C {item.carbs_per_100g}g • F{" "}
                             {item.fats_per_100g}g
@@ -688,7 +805,7 @@ export function ScannerView({
                         </div>
 
                         <div className="flex items-center gap-2">
-                          <div className="flex items-center rounded-lg border border-white/10 bg-[#141414] px-2.5 py-1">
+                          <div className="flex items-center rounded-xl border border-white/10 bg-[#171717] px-2.5 py-1.5">
                             <input
                               type="number"
                               min={0}
@@ -704,7 +821,7 @@ export function ScannerView({
                               }
                               className="w-14 bg-transparent text-right font-mono text-sm font-semibold text-[#A3FF12] tabular-nums focus:outline-none"
                             />
-                            <span className="ml-1 font-mono text-xs text-zinc-400">
+                            <span className="ml-1 font-mono text-xs text-[#A1A1AA]">
                               g
                             </span>
                           </div>
@@ -715,7 +832,8 @@ export function ScannerView({
                               type="button"
                               onClick={() => handleResetPortion(item.id)}
                               title="Reset to detected portion"
-                              className="rounded-lg border border-white/10 p-1.5 text-zinc-400 transition hover:text-white"
+                              aria-label={`Reset ${item.name} portion`}
+                              className="rounded-xl border border-white/10 bg-[#171717] p-2 text-[#A1A1AA] transition hover:border-white/25 hover:text-white"
                             >
                               <RotateCcw className="h-3.5 w-3.5" />
                             </button>
@@ -724,7 +842,7 @@ export function ScannerView({
                       </div>
 
                       {/* Portion Range Slider */}
-                      <div className="mt-3.5">
+                      <div className="mt-4">
                         <input
                           type="range"
                           min={0}
@@ -740,7 +858,7 @@ export function ScannerView({
                             background: `linear-gradient(to right, #A3FF12 0%, #34D399 ${fillPercent}%, rgba(255,255,255,0.12) ${fillPercent}%, rgba(255,255,255,0.12) 100%)`,
                           }}
                         />
-                        <div className="mt-1 flex justify-between font-mono text-[10px] text-zinc-500">
+                        <div className="mt-1.5 flex justify-between font-mono text-[10px] text-zinc-500">
                           <span>0g</span>
                           <span>Detected: {Math.round(item.initial_portion_grams)}g</span>
                           <span>{sliderMax}g</span>
@@ -748,8 +866,8 @@ export function ScannerView({
                       </div>
 
                       {/* Per-item Live Macros */}
-                      <div className="mt-3.5 grid grid-cols-4 gap-2 text-center font-mono text-xs tabular-nums">
-                        <div className="rounded-lg bg-[#141414] px-2 py-1.5">
+                      <div className="mt-3.5 grid grid-cols-2 gap-2 text-center font-mono text-xs tabular-nums sm:grid-cols-4">
+                        <div className="rounded-xl border border-white/[0.04] bg-[#121212] px-2.5 py-2">
                           <span className="block text-[10px] text-zinc-500">
                             CALORIES
                           </span>
@@ -757,7 +875,7 @@ export function ScannerView({
                             {Math.round(item.calories)} kcal
                           </span>
                         </div>
-                        <div className="rounded-lg bg-[#141414] px-2 py-1.5">
+                        <div className="rounded-xl border border-white/[0.04] bg-[#121212] px-2.5 py-2">
                           <span className="block text-[10px] text-zinc-500">
                             PROTEIN
                           </span>
@@ -765,7 +883,7 @@ export function ScannerView({
                             {item.protein.toFixed(1)} g
                           </span>
                         </div>
-                        <div className="rounded-lg bg-[#141414] px-2 py-1.5">
+                        <div className="rounded-xl border border-white/[0.04] bg-[#121212] px-2.5 py-2">
                           <span className="block text-[10px] text-zinc-500">
                             CARBS
                           </span>
@@ -773,7 +891,7 @@ export function ScannerView({
                             {item.carbs.toFixed(1)} g
                           </span>
                         </div>
-                        <div className="rounded-lg bg-[#141414] px-2 py-1.5">
+                        <div className="rounded-xl border border-white/[0.04] bg-[#121212] px-2.5 py-2">
                           <span className="block text-[10px] text-zinc-500">
                             FAT
                           </span>
@@ -782,7 +900,7 @@ export function ScannerView({
                           </span>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
               </div>
@@ -791,18 +909,23 @@ export function ScannerView({
 
           {/* Log Meal to Dashboard */}
           {items.length > 0 && (
-            <div className="rounded-2xl border border-white/[0.08] bg-[#121212] p-5 sm:p-6">
+            <motion.div
+              initial={prefersReduced ? false : { opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, ease: EASE_PREMIUM }}
+              className="rounded-2xl border border-white/[0.08] bg-[#121212] p-5 shadow-xl sm:p-6"
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <h2 className="font-display text-base font-semibold text-white">
+                  <h2 className="font-display text-base font-bold text-white">
                     Save Meal to Dashboard
                   </h2>
-                  <p className="text-xs text-zinc-400">
+                  <p className="text-xs text-[#A1A1AA]">
                     Logs adjusted portions via POST /api/logs so your daily totals stay accurate.
                   </p>
                 </div>
-                <span className="font-mono text-xs font-semibold text-[#A3FF12]">
-                  {Math.round(totals.calories)} kcal total
+                <span className="rounded-full border border-[#A3FF12]/25 bg-[#A3FF12]/10 px-3 py-1 font-mono text-xs font-semibold text-[#A3FF12]">
+                  <AnimatedNumber value={totals.calories} suffix=" kcal total" />
                 </span>
               </div>
 
@@ -810,7 +933,7 @@ export function ScannerView({
                 <div className="sm:col-span-2">
                   <label
                     htmlFor="meal-name"
-                    className="mb-1 block text-xs font-medium text-zinc-400"
+                    className="mb-1 block text-xs font-medium text-[#A1A1AA]"
                   >
                     Meal Name
                   </label>
@@ -827,7 +950,7 @@ export function ScannerView({
                 <div>
                   <label
                     htmlFor="meal-type"
-                    className="mb-1 block text-xs font-medium text-zinc-400"
+                    className="mb-1 block text-xs font-medium text-[#A1A1AA]"
                   >
                     Meal Type
                   </label>
@@ -849,7 +972,7 @@ export function ScannerView({
               <div className="mt-3">
                 <label
                   htmlFor="meal-notes"
-                  className="mb-1 block text-xs font-medium text-zinc-400"
+                  className="mb-1 block text-xs font-medium text-[#A1A1AA]"
                 >
                   Notes (optional)
                 </label>
@@ -890,14 +1013,16 @@ export function ScannerView({
                 <button
                   type="button"
                   onClick={() => onNavigate("alternatives")}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#34D399] hover:text-[#A3FF12]"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#34D399] transition hover:text-[#A3FF12]"
                 >
                   <Sparkles className="h-3.5 w-3.5" />
                   <span>Explore 3 Healthier Alternatives</span>
                 </button>
 
-                <button
+                <motion.button
                   type="button"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={handleLogMeal}
                   disabled={logging}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#34D399] px-5 py-2.5 text-sm font-bold text-[#0A0A0A] transition hover:bg-[#4adeb0] disabled:opacity-50"
@@ -910,12 +1035,12 @@ export function ScannerView({
                   ) : (
                     <>
                       <Save className="h-4 w-4" />
-                      <span>Log Meal to Dashboard</span>
+                      <span>Save Meal</span>
                     </>
                   )}
-                </button>
+                </motion.button>
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
       </div>

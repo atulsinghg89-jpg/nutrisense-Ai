@@ -27,6 +27,52 @@
   }
 }
 
+/* Subtle dark engineering grid & surface utilities */
+.bg-grid-subtle {
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.glass-surface {
+  background: rgba(18, 18, 18, 0.78);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+
+/* Scanner vertical laser beam animation */
+@keyframes scanBeam {
+  0% {
+    top: 4%;
+    opacity: 0.2;
+  }
+  15% {
+    opacity: 0.95;
+  }
+  85% {
+    opacity: 0.95;
+  }
+  100% {
+    top: 92%;
+    opacity: 0.2;
+  }
+}
+
+.animate-scan-beam {
+  animation: scanBeam 2.1s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-scan-beam {
+    animation: none;
+    top: 50%;
+  }
+}
+
 /* Custom subtle scrollbars for dark theme */
 ::-webkit-scrollbar {
   width: 8px;
@@ -65,12 +111,12 @@ input[type="range"].nutri-slider::-webkit-slider-thumb {
   background: #a3ff12;
   border: 2px solid #0a0a0a;
   box-shadow: 0 0 0 2px rgba(163, 255, 18, 0.3), 0 0 12px rgba(163, 255, 18, 0.45);
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
 
 input[type="range"].nutri-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
-  box-shadow: 0 0 0 3px rgba(163, 255, 18, 0.4), 0 0 16px rgba(163, 255, 18, 0.6);
+  transform: scale(1.12);
+  box-shadow: 0 0 0 4px rgba(163, 255, 18, 0.35), 0 0 18px rgba(163, 255, 18, 0.65);
 }
 
 input[type="range"].nutri-slider::-moz-range-thumb {
@@ -80,5 +126,5 @@ input[type="range"].nutri-slider::-moz-range-thumb {
   background: #a3ff12;
   border: 2px solid #0a0a0a;
   box-shadow: 0 0 0 2px rgba(163, 255, 18, 0.3), 0 0 12px rgba(163, 255, 18, 0.45);
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
 }

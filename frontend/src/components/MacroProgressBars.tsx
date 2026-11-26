@@ -1,4 +1,6 @@
+import { motion, useReducedMotion } from "framer-motion";
 import type { DailyMacroTargets } from "../types/nutrition";
+import { EASE_PREMIUM } from "./MotionPrimitives";
 
 interface MacroProgressBarsProps {
   calories: number;
@@ -15,9 +17,10 @@ interface MacroRowConfig {
   value: number;
   target: number;
   unit: string;
-  barColor: string;
+  barGradient: string;
   trackGlow: string;
   badgeText: string;
+  dotColor: string;
 }
 
 export function MacroProgressBars({
@@ -28,6 +31,8 @@ export function MacroProgressBars({
   targets,
   subtitle,
 }: MacroProgressBarsProps) {
+  const prefersReduced = useReducedMotion();
+
   const rows: MacroRowConfig[] = [
     {
       key: "calories",
@@ -35,9 +40,10 @@ export function MacroProgressBars({
       value: calories,
       target: Math.max(targets.calories, 1),
       unit: "kcal",
-      barColor: "bg-[#A3FF12]",
-      trackGlow: "shadow-[0_0_14px_rgba(163,255,18,0.35)]",
+      barGradient: "bg-gradient-to-r from-[#A3FF12] to-[#34D399]",
+      trackGlow: "shadow-[0_0_16px_rgba(163,255,18,0.35)]",
       badgeText: "text-[#A3FF12]",
+      dotColor: "bg-[#A3FF12]",
     },
     {
       key: "protein",
@@ -45,37 +51,40 @@ export function MacroProgressBars({
       value: protein,
       target: Math.max(targets.protein, 1),
       unit: "g",
-      barColor: "bg-[#34D399]",
+      barGradient: "bg-[#34D399]",
       trackGlow: "shadow-[0_0_14px_rgba(52,211,153,0.35)]",
       badgeText: "text-[#34D399]",
+      dotColor: "bg-[#34D399]",
     },
     {
       key: "carbs",
-      label: "Carbs",
+      label: "Carbohydrates",
       value: carbs,
       target: Math.max(targets.carbs, 1),
       unit: "g",
-      barColor: "bg-emerald-300",
+      barGradient: "bg-emerald-300",
       trackGlow: "shadow-[0_0_12px_rgba(110,231,183,0.28)]",
       badgeText: "text-emerald-300",
+      dotColor: "bg-emerald-300",
     },
     {
       key: "fats",
-      label: "Fat",
+      label: "Fats",
       value: fats,
       target: Math.max(targets.fats, 1),
       unit: "g",
-      barColor: "bg-lime-200",
+      barGradient: "bg-lime-200",
       trackGlow: "shadow-[0_0_12px_rgba(217,249,157,0.25)]",
       badgeText: "text-lime-200",
+      dotColor: "bg-lime-200",
     },
   ];
 
   return (
     <div className="space-y-4">
-      {subtitle && <p className="text-xs text-zinc-400">{subtitle}</p>}
+      {subtitle && <p className="text-xs text-[#A1A1AA]">{subtitle}</p>}
 
-      {rows.map((row) => {
+      {rows.map((row, idx) => {
         const rawPercent = Math.round((row.value / row.target) * 100);
         const clampedWidth = Math.min(Math.max(rawPercent, 0), 100);
         const formattedValue =
@@ -84,18 +93,21 @@ export function MacroProgressBars({
             : row.value.toFixed(1).replace(/\.0$/, "");
 
         return (
-          <div key={row.key} className="space-y-1.5">
+          <div key={row.key} className="space-y-2">
             <div className="flex items-baseline justify-between gap-2 text-sm">
-              <span className="font-medium text-white">{row.label}</span>
+              <span className="inline-flex items-center gap-2 font-medium text-white">
+                <span className={`h-2 w-2 rounded-full ${row.dotColor}`} />
+                {row.label}
+              </span>
               <div className="flex items-center gap-2 font-mono text-xs tabular-nums">
-                <span className="text-white">
+                <span className="font-semibold text-white">
                   {formattedValue} {row.unit}
                 </span>
                 <span className="text-zinc-500">
                   / {row.target.toLocaleString()} {row.unit}
                 </span>
                 <span
-                  className={`rounded-md bg-white/[0.05] px-1.5 py-0.5 text-[11px] font-semibold ${
+                  className={`rounded-md border border-white/[0.06] bg-[#171717] px-1.5 py-0.5 text-[11px] font-semibold ${
                     rawPercent > 100 ? "text-amber-300" : row.badgeText
                   }`}
                 >
@@ -104,12 +116,18 @@ export function MacroProgressBars({
               </div>
             </div>
 
-            <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/[0.07] p-0.5">
-              <div
-                className={`h-full rounded-full transition-all duration-300 ease-out ${row.barColor} ${
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-white/[0.06] p-0.5">
+              <motion.div
+                initial={prefersReduced ? false : { width: 0 }}
+                animate={{ width: `${clampedWidth}%` }}
+                transition={{
+                  duration: prefersReduced ? 0 : 0.6,
+                  delay: prefersReduced ? 0 : idx * 0.05,
+                  ease: EASE_PREMIUM,
+                }}
+                className={`h-full rounded-full ${row.barGradient} ${
                   clampedWidth > 0 ? row.trackGlow : ""
                 }`}
-                style={{ width: `${clampedWidth}%` }}
                 role="progressbar"
                 aria-label={row.label}
                 aria-valuenow={Math.round(row.value)}

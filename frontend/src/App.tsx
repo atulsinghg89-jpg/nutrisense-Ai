@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
+import { AnimatePresence, MotionConfig, motion } from "framer-motion";
+import { EASE_PREMIUM } from "./components/MotionPrimitives";
 import { Navbar } from "./components/Navbar";
-import { checkBackendHealth } from "./lib/api";
+import { checkBackendHealth, fetchMealLogs, round2 } from "./lib/api";
 import type {
   AppView,
   DailyMacroTargets,
+  DashboardSummary,
   EditableFoodItem,
   MacroTotals,
   ScanSession,
@@ -23,6 +26,29 @@ const DEFAULT_TARGETS: DailyMacroTargets = {
   carbs: 250,
   fats: 70,
 };
+
+const EMPTY_SUMMARY: DashboardSummary = {
+  total_meals: 0,
+  total_items: 0,
+  total_portion_grams: 0,
+  total_calories: 0,
+  total_protein: 0,
+  total_carbs: 0,
+  total_fats: 0,
+};
+
+function formatLocalYMD(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function isSameLocalDay(isoString: string, targetYmd: string): boolean {
+  const parsed = new Date(isoString);
+  if (Number.isNaN(parsed.getTime())) return false;
+  return formatLocalYMD(parsed) === targetYmd;
+}
 
 function readInitialViewFromHash(): AppView {
   const hash = window.location.hash.replace("#", "").toLowerCase();
@@ -80,10 +106,55 @@ export function App() {
   );
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
   const [dashboardRefreshTrigger, setDashboardRefreshTrigger] = useState(0);
+  const [todaySummary, setTodaySummary] =
+    useState<DashboardSummary>(EMPTY_SUMMARY);
+  const [todaySummaryLoading, setTodaySummaryLoading] = useState(true);
 
   useEffect(() => {
     void checkBackendHealth().then(setApiOnline);
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    const loadTodaySummary = async () => {
+      setTodaySummaryLoading(true);
+      try {
+        const res = await fetchMealLogs();
+        if (!active) return;
+        const todayYmd = formatLocalYMD(new Date());
+        const todaysMeals = res.data.meals.filter((meal) =>
+          isSameLocalDay(meal.logged_at, todayYmd),
+        );
+        const computed = todaysMeals.reduce<DashboardSummary>(
+          (acc, meal) => ({
+            total_meals: acc.total_meals + 1,
+            total_items: acc.total_items + (meal.items?.length ?? 0),
+            total_portion_grams: round2(
+              acc.total_portion_grams + meal.total_portion_grams,
+            ),
+            total_calories: round2(acc.total_calories + meal.total_calories),
+            total_protein: round2(acc.total_protein + meal.total_protein),
+            total_carbs: round2(acc.total_carbs + meal.total_carbs),
+            total_fats: round2(acc.total_fats + meal.total_fats),
+          }),
+          EMPTY_SUMMARY,
+        );
+        setTodaySummary(computed);
+      } catch {
+        if (active) {
+          setTodaySummary(EMPTY_SUMMARY);
+        }
+      } finally {
+        if (active) {
+          setTodaySummaryLoading(false);
+        }
+      }
+    };
+    void loadTodaySummary();
+    return () => {
+      active = false;
+    };
+  }, [dashboardRefreshTrigger]);
 
   useEffect(() => {
     const onHashChange = () => {
@@ -141,52 +212,77 @@ export function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-white">
-      <Navbar
-        activeView={activeView}
-        onNavigate={handleNavigate}
-        alternativesCount={scanSession?.alternatives.length ?? 0}
-        apiOnline={apiOnline}
-      />
+    <MotionConfig reducedMotion="user">
+      <div className="relative min-h-screen bg-[#0A0A0A] text-white">
+        {/* Subtle top ambient light */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none fixed inset-x-0 top-0 h-[420px] bg-[radial-gradient(ellipse_at_top,rgba(163,255,18,0.06),transparent_65%)]"
+        />
 
-      <main className="mx-auto max-w-7xl px-4 pt-8 pb-20 sm:px-6 md:pb-12 lg:px-8">
-        {activeView === "home" && (
-          <HomeView
-            onNavigate={handleNavigate}
-            hasActiveScan={Boolean(scanSession && scanSession.alternatives.length > 0)}
-          />
-        )}
+        <Navbar
+          activeView={activeView}
+          onNavigate={handleNavigate}
+          alternativesCount={scanSession?.alternatives.length ?? 0}
+          apiOnline={apiOnline}
+        />
 
-        {activeView === "scanner" && (
-          <ScannerView
-            scanSession={scanSession}
-            onScanComplete={handleScanComplete}
-            onUpdateItems={handleUpdateItems}
-            dailyTargets={dailyTargets}
-            onNavigate={handleNavigate}
-            onMealLogged={() => setDashboardRefreshTrigger((n) => n + 1)}
-          />
-        )}
+        <main className="relative mx-auto max-w-7xl px-4 pt-6 pb-24 sm:px-6 md:pt-8 md:pb-14 lg:px-8">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeView}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.24, ease: EASE_PREMIUM }}
+            >
+              {activeView === "home" && (
+                <HomeView
+                  onNavigate={handleNavigate}
+                  hasActiveScan={Boolean(
+                    scanSession && scanSession.alternatives.length > 0,
+                  )}
+                  scanSession={scanSession}
+                  dailyTargets={dailyTargets}
+                  todaySummary={todaySummary}
+                  todaySummaryLoading={todaySummaryLoading}
+                  apiOnline={apiOnline}
+                />
+              )}
 
-        {activeView === "alternatives" && (
-          <AlternativesView
-            scanSession={scanSession}
-            onNavigate={handleNavigate}
-          />
-        )}
+              {activeView === "scanner" && (
+                <ScannerView
+                  scanSession={scanSession}
+                  onScanComplete={handleScanComplete}
+                  onUpdateItems={handleUpdateItems}
+                  dailyTargets={dailyTargets}
+                  onNavigate={handleNavigate}
+                  onMealLogged={() => setDashboardRefreshTrigger((n) => n + 1)}
+                />
+              )}
 
-        {activeView === "categories" && <CategoriesView />}
+              {activeView === "alternatives" && (
+                <AlternativesView
+                  scanSession={scanSession}
+                  onNavigate={handleNavigate}
+                />
+              )}
 
-        {activeView === "dashboard" && (
-          <DashboardView
-            dailyTargets={dailyTargets}
-            onUpdateTargets={handleUpdateTargets}
-            onNavigate={handleNavigate}
-            refreshTrigger={dashboardRefreshTrigger}
-          />
-        )}
-      </main>
-    </div>
+              {activeView === "categories" && <CategoriesView />}
+
+              {activeView === "dashboard" && (
+                <DashboardView
+                  dailyTargets={dailyTargets}
+                  onUpdateTargets={handleUpdateTargets}
+                  onNavigate={handleNavigate}
+                  refreshTrigger={dashboardRefreshTrigger}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
+    </MotionConfig>
   );
 }
 
