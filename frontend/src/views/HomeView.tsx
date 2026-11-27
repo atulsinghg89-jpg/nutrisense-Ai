@@ -26,6 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { CircuitLines } from "../components/CircuitLines";
+import { FourAudienceChaptersSection } from "../components/chapters/FourAudienceChaptersSection";
 import { DoshaSection } from "../components/dosha/DoshaSection";
 import { FloatingFoodIngredients } from "../components/FloatingFoodIngredients";
 import { HumanCategorySelector } from "../components/HumanSelectionCards";
@@ -44,6 +45,7 @@ import type { NutritionCategoryGuide } from "../data/categories";
 import type { DoshaId } from "../data/doshas";
 import type {
   AppView,
+  AudienceChapterId,
   DailyMacroTargets,
   DashboardSummary,
   ScanSession,
@@ -53,6 +55,7 @@ interface HomeViewProps {
   onNavigate: (view: AppView) => void;
   onSelectCategory?: (categoryId: NutritionCategoryGuide["id"]) => void;
   onOpenDosha?: (doshaId: DoshaId) => void;
+  onLaunchProfileDashboard?: (chapterId: AudienceChapterId) => void;
   onOpenDashboardGoals: () => void;
   onOpenAssistant: () => void;
   onOpenOnboarding: () => void;
@@ -129,6 +132,7 @@ export function HomeView({
   onNavigate,
   onSelectCategory,
   onOpenDosha,
+  onLaunchProfileDashboard,
   onOpenDashboardGoals,
   onOpenAssistant,
   onOpenOnboarding,
@@ -626,6 +630,19 @@ export function HomeView({
         onOpenDosha={(doshaId) => {
           if (onOpenDosha) {
             onOpenDosha(doshaId);
+          }
+        }}
+      />
+
+      {/* 2.6 Four Audience Chapters (Men, Women, Babies, Patients — immediately after Discover Your Rhythm) */}
+      <FourAudienceChaptersSection
+        onNavigate={onNavigate}
+        onSelectCategory={onSelectCategory}
+        onLaunchProfileDashboard={(chapterId) => {
+          if (onLaunchProfileDashboard) {
+            onLaunchProfileDashboard(chapterId);
+          } else {
+            onNavigate("dashboard");
           }
         }}
       />

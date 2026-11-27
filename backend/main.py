@@ -244,6 +244,8 @@ class ScanResponse(BaseModel):
     data_sources: list[str]
     analysis_limitations: list[str]
     model_used: str
+    uploaded_file_id: int | None = None
+    uploaded_image_ref: str | None = None
     items: list[ScannedFoodItem]
     totals: MacroTotals
     healthier_alternatives: list[HealthierAlternative]
@@ -686,9 +688,19 @@ def _analyze_food_with_gemini(image_bytes: bytes, mime_type: str) -> tuple[Gemin
     raise last_error or ValueError("All Gemini vision models failed.")
 
 
+import nutrition_db
+from fastapi import Request
+from fastapi.responses import JSONResponse
+from sqlalchemy.exc import SQLAlchemyError
+from persistence_layer import ensure_audit_schema_upgrades, register_persistence_layer
+from user_platform import register_user_platform
+from wellness_catalog import register_wellness_and_catalog
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
+    ensure_audit_schema_upgrades(engine)
     yield
     engine.dispose()
 
@@ -700,13 +712,47 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+@app.exception_handler(SQLAlchemyError)
+async def sqlalchemy_exception_handler(_: Request, exc: SQLAlchemyError) -> JSONResponse:
+    logger.exception("PostgreSQL error encountered: %s", type(exc).__name__)
+    return JSONResponse(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        content={
+            "detail": "Database temporarily unavailable. No data was dropped or mocked; please retry shortly."
+        },
+    )
+
+DEFAULT_CORS_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:4173",
+    "http://127.0.0.1:4173",
+]
+extra_origins = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv("FRONTEND_ORIGINS", "").split(",")
+    if origin.strip()
+]
+cors_origins = list(dict.fromkeys([*DEFAULT_CORS_ORIGINS, *extra_origins]))
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=cors_origins,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_platform_ctx = register_user_platform(app, Base, get_db)
+_persistence_ctx = register_persistence_layer(
+    app, Base, get_db, _platform_ctx, SessionLocal, nutrition_db
+)
+_platform_ctx["add_account_cleanup_hook"](
+    _persistence_ctx["delete_user_upload_files_on_disk"]
+)
+register_wellness_and_catalog(app, Base, get_db, _platform_ctx, SessionLocal)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
@@ -958,7 +1004,11 @@ def _build_hybrid_scan_response(
 
 
 @app.post("/api/scan", response_model=ScanResponse, tags=["Food Analysis"])
-async def scan_food_image(file: UploadFile = File(..., description="Food image file")) -> ScanResponse:
+async def scan_food_image(
+    file: UploadFile = File(..., description="Food image file"),
+    current_user: Any = Depends(_platform_ctx["get_optional_user"]),
+    db: Session = Depends(get_db),
+) -> ScanResponse:
     """Analyze an uploaded food image using Gemini Vision + ICMR–NIN/USDA databases."""
     image_bytes = await file.read()
     if not image_bytes:
@@ -988,7 +1038,22 @@ async def scan_food_image(file: UploadFile = File(..., description="Food image f
             detail="No edible food items were detected in the uploaded image. Try a clearer well-lit photo.",
         )
 
-    return await run_in_threadpool(_build_hybrid_scan_response, analysis, model_used)
+    scan_resp = await run_in_threadpool(_build_hybrid_scan_response, analysis, model_used)
+
+    # Save authenticated meal photos to private server storage + uploaded_files PostgreSQL table
+    if current_user is not None:
+        uploaded_rec = _persistence_ctx["save_private_upload"](
+            db=db,
+            file_bytes=image_bytes,
+            original_filename=file.filename or "meal.jpg",
+            mime_type=mime_type,
+            user_id=current_user.id,
+        )
+        if uploaded_rec is not None:
+            scan_resp.uploaded_file_id = uploaded_rec.id
+            scan_resp.uploaded_image_ref = f"/api/uploads/{uploaded_rec.file_key}"
+
+    return scan_resp
 
 
 class LookupIngredientResponse(BaseModel):
@@ -1318,9 +1383,21 @@ def _generate_gemini_meal_plan(payload: WeeklyMealPlanRequest) -> WeeklyMealPlan
                 ),
             )
             parsed = response.parsed if isinstance(response.parsed, _PlanSchema) else _PlanSchema.model_validate(json.loads(response.text))
+            days_out = parsed.days[:7]
+            cache_key = f"gemini_meal_plan:{payload.preference}:{payload.daily_calorie_target}:{int(payload.budget_friendly)}"
+            _persistence_ctx["cache_external_payload"](
+                cache_key=cache_key,
+                source_name="Google Gemini AI",
+                source_url="https://ai.google.dev/gemini-api",
+                external_id=model_name,
+                data_type="ai_meal_plan",
+                payload=[d.model_dump() for d in days_out],
+                ttl_days=14,
+                verification_status="ai_generated_estimate",
+            )
             return WeeklyMealPlanResponse(
                 preference=payload.preference,
-                days=parsed.days[:7],
+                days=days_out,
                 source=f"gemini:{model_name}",
             )
         except genai_errors.APIError as exc:

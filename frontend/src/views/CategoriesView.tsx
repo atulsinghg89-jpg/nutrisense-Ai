@@ -15,6 +15,7 @@ import {
   staggerContainerVariants,
   staggerItemVariants,
 } from "../components/MotionPrimitives";
+import { RecommendedProductsHub } from "../components/products/RecommendedProductsHub";
 import {
   NUTRITION_CATEGORIES,
   type NutritionCategoryGuide,
@@ -369,6 +370,24 @@ export function CategoriesView({ initialCategory = "all" }: CategoriesViewProps)
           );
         })}
       </motion.div>
+
+      {/* Centralized Reusable Product Recommendation Hub Scoped to Active Category */}
+      <RecommendedProductsHub
+        defaultAudience={
+          selectedId === "mens-health"
+            ? "men"
+            : selectedId === "womens-health"
+              ? "women"
+              : selectedId === "baby-nutrition"
+                ? "babies"
+                : selectedId === "patient-nutrition"
+                  ? "patients"
+                  : "all"
+        }
+        referrerSection={`categories_${selectedId}`}
+        title="Curated Category Essentials & Comparison"
+        subtitle="Powered by the centralized NutriSense product catalog across Men, Women, Babies, and Patients."
+      />
     </div>
   );
 }

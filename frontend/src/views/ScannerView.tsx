@@ -22,9 +22,11 @@ import {
 } from "lucide-react";
 import { EASE_PREMIUM } from "../components/MotionPrimitives";
 import { ScanExperienceStory } from "../components/ScanExperienceStory";
+import { useAuth } from "../context/AuthContext";
 import {
   computeTotals,
   createMealLog,
+  createTrackedFoodEntry,
   recalculateMacros,
   round2,
   scaleIngredientFromGrams,
@@ -166,6 +168,8 @@ function buildSessionFromScanResponse(
       "Portion weights are visual estimates from a single 2D photo.",
     ],
     modelUsed: result.model_used,
+    uploadedFileId: result.uploaded_file_id ?? null,
+    uploadedImageRef: result.uploaded_image_ref ?? null,
     items: editableItems,
     totals: result.totals,
     alternatives: result.healthier_alternatives,
@@ -265,6 +269,22 @@ export function ScannerView({
   onNavigate,
   onMealLogged,
 }: ScannerViewProps) {
+  const { user, profiles, activeProfileId } = useAuth();
+  const [selectedProfileId, setSelectedProfileId] = useState<number | null>(
+    activeProfileId,
+  );
+
+  useEffect(() => {
+    setSelectedProfileId(activeProfileId);
+  }, [activeProfileId]);
+
+  const targetProfileId =
+    selectedProfileId && profiles.some((p) => p.id === selectedProfileId)
+      ? selectedProfileId
+      : (activeProfileId ?? profiles[0]?.id ?? null);
+  const selectedProfile =
+    profiles.find((p) => p.id === targetProfileId) ?? null;
+
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const cameraCaptureInputRef = useRef<HTMLInputElement | null>(null);
   const uploadSectionRef = useRef<HTMLDivElement | null>(null);
@@ -604,22 +624,80 @@ export function ScannerView({
     setLogError(null);
     setLogSuccess(false);
 
+    const activeIngredients = scanSession.ingredients.filter(
+      (i) => i.estimated_grams > 0,
+    );
+    const activeItems = scanSession.items.filter((i) => i.portion_grams > 0);
+    const resolvedMealName =
+      mealName.trim() || scanSession.foodName || "Scanned Meal";
+
     try {
       await createMealLog({
-        meal_name: mealName.trim() || scanSession.foodName || undefined,
+        meal_name: resolvedMealName,
         meal_type: mealType,
         notes: mealNotes.trim() || undefined,
-        items: scanSession.items
-          .filter((i) => i.portion_grams > 0)
-          .map((item) => ({
-            name: item.name,
-            portion_grams: item.portion_grams,
-            calories: item.calories,
-            protein: item.protein,
-            carbs: item.carbs,
-            fats: item.fats,
-          })),
+        items: activeItems.map((item) => ({
+          name: item.name,
+          portion_grams: item.portion_grams,
+          calories: item.calories,
+          protein: item.protein,
+          carbs: item.carbs,
+          fats: item.fats,
+        })),
       });
+
+      if (user && targetProfileId) {
+        const sumCalcium = round2(
+          activeIngredients.reduce((s, x) => s + (x.calcium_mg || 0), 0),
+        );
+        const sumIron = round2(
+          activeIngredients.reduce((s, x) => s + (x.iron_mg || 0), 0),
+        );
+        const sumVitC = round2(
+          activeIngredients.reduce((s, x) => s + (x.vitamin_c_mg || 0), 0),
+        );
+        const sumPotassium = round2(
+          activeIngredients.reduce((s, x) => s + (x.potassium_mg || 0), 0),
+        );
+
+        await createTrackedFoodEntry({
+          profile_id: targetProfileId,
+          meal_name: resolvedMealName,
+          meal_type: mealType,
+          measurement_source: "ai_scan",
+          total_portion_grams: Math.max(1, scanSession.totals.portion_grams),
+          calories: scanSession.totals.calories,
+          protein: scanSession.totals.protein,
+          carbs: scanSession.totals.carbs,
+          fats: scanSession.totals.fats,
+          fibre: scanSession.fibre,
+          sugar: scanSession.sugar,
+          sodium_mg: scanSession.sodiumMg,
+          calcium_mg: sumCalcium > 0 ? sumCalcium : null,
+          iron_mg: sumIron > 0 ? sumIron : null,
+          vitamin_c_mg: sumVitC > 0 ? sumVitC : null,
+          potassium_mg: sumPotassium > 0 ? sumPotassium : null,
+          ingredients: activeIngredients.map((ing) => ({
+            name: ing.name,
+            portion_grams: Math.max(0.1, ing.estimated_grams),
+            calories: ing.calories,
+            protein: ing.protein,
+            carbs: ing.carbohydrates,
+            fats: ing.fats,
+            fibre: ing.fibre,
+            sugar: ing.sugar,
+            sodium_mg: ing.sodium_mg,
+            source_label: ing.source_label,
+          })),
+          image_file_id: scanSession.uploadedFileId ?? null,
+          image_ref: scanSession.uploadedImageRef ?? null,
+          ai_estimated: true,
+          confirmed_by_user: true,
+          nutrition_sources: scanSession.dataSources,
+          notes: mealNotes.trim() || null,
+        });
+      }
+
       setLogSuccess(true);
       onMealLogged();
     } catch (error) {
@@ -1007,6 +1085,34 @@ export function ScannerView({
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Profile Save Target & Allergy Awareness Banner when Authenticated */}
+      {hasRichAnalysis && scanSession && user && profiles.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#34D399]/30 bg-[#0D130F] px-4 py-3 text-xs">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-semibold text-[#34D399]">
+              Logging scanned meal to profile:
+            </span>
+            <select
+              value={targetProfileId ?? ""}
+              onChange={(e) => setSelectedProfileId(Number(e.target.value))}
+              className="rounded-xl border border-white/15 bg-[#050706] px-3 py-1.5 text-xs font-semibold text-white"
+            >
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.display_name} ({p.profile_type})
+                </option>
+              ))}
+            </select>
+          </div>
+          {selectedProfile && selectedProfile.allergies.length > 0 && (
+            <span className="rounded-full border border-rose-400/40 bg-rose-500/15 px-3 py-1 font-semibold text-rose-200">
+              Allergy Watch ({selectedProfile.display_name}):{" "}
+              {selectedProfile.allergies.join(", ")}
+            </span>
+          )}
         </div>
       )}
 

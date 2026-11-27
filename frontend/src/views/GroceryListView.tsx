@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Check,
@@ -7,6 +7,8 @@ import {
   Sparkles,
   Trash2,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { fetchWorkspaceState, saveWorkspaceState } from "../lib/api";
 import type { AppView, GroceryItem } from "../types/nutrition";
 
 export const GROCERY_STORAGE_KEY = "nutrisense_grocery_list_v1";
@@ -51,15 +53,36 @@ const CATEGORIES: GroceryItem["category"][] = [
 ];
 
 export function GroceryListView({ onNavigate }: GroceryListViewProps) {
+  const { user } = useAuth();
   const [items, setItems] = useState<GroceryItem[]>(() => loadGroceryList());
   const [newItemName, setNewItemName] = useState("");
   const [newItemCategory, setNewItemCategory] =
     useState<GroceryItem["category"]>("Produce & Herbs");
 
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    void fetchWorkspaceState()
+      .then((ws) => {
+        if (!active || !Array.isArray(ws.grocery_items) || ws.grocery_items.length === 0) {
+          return;
+        }
+        setItems(ws.grocery_items);
+        saveGroceryList(ws.grocery_items);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
   function updateItems(updater: (prev: GroceryItem[]) => GroceryItem[]) {
     setItems((prev) => {
       const next = updater(prev);
       saveGroceryList(next);
+      if (user) {
+        void saveWorkspaceState({ grocery_items: next }).catch(() => {});
+      }
       return next;
     });
   }

@@ -1,17 +1,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, MotionConfig, motion } from "framer-motion";
 import { Bot, CheckCircle2, X } from "lucide-react";
+import { AuthModal } from "./components/AuthModal";
 import { EASE_PREMIUM } from "./components/MotionPrimitives";
 import { Navbar } from "./components/Navbar";
 import { NutriAssistantDrawer } from "./components/NutriAssistantDrawer";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { Preloader } from "./components/Preloader";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import type { NutritionCategoryGuide } from "./data/categories";
 import type { DoshaId } from "./data/doshas";
-import { checkBackendHealth, fetchMealLogs, round2 } from "./lib/api";
+import {
+  checkBackendHealth,
+  fetchMealLogs,
+  fetchWorkspaceState,
+  round2,
+  saveWorkspaceState,
+} from "./lib/api";
 import { loadUserProfile, saveUserProfile } from "./lib/nutritionMath";
 import type {
   AppView,
+  AudienceChapterId,
   DailyMacroTargets,
   DashboardSummary,
   EditableFoodItem,
@@ -19,16 +28,18 @@ import type {
   ScanSession,
   UserNutritionProfile,
 } from "./types/nutrition";
+import { RecommendedProductsHub } from "./components/products/RecommendedProductsHub";
 import { AlternativesView } from "./views/AlternativesView";
 import { BudgetNutritionView } from "./views/BudgetNutritionView";
 import { CategoriesView } from "./views/CategoriesView";
-import { DashboardView } from "./views/DashboardView";
 import { DoshaDetailView } from "./views/DoshaDetailView";
 import { GroceryListView } from "./views/GroceryListView";
 import { HomeView } from "./views/HomeView";
 import { IndianFoodsView } from "./views/IndianFoodsView";
 import { MealPlannerView } from "./views/MealPlannerView";
+import { PersonalisedDashboardView } from "./views/PersonalisedDashboardView";
 import { ScannerView } from "./views/ScannerView";
+import { WomensWellnessView } from "./views/WomensWellnessView";
 
 const TARGETS_STORAGE_KEY = "nutrisense_daily_targets_v1";
 const SCAN_STORAGE_KEY = "nutrisense_latest_scan_v1";
@@ -89,7 +100,9 @@ function readInitialViewFromHash(): AppView {
     hash === "planner" ||
     hash === "indian-foods" ||
     hash === "grocery" ||
-    hash === "budget"
+    hash === "budget" ||
+    hash === "womens-wellness" ||
+    hash === "recommended-products"
   ) {
     return hash;
   }
@@ -153,10 +166,13 @@ function loadStoredScan(): ScanSession | null {
   }
 }
 
-export function App() {
+function AppShell() {
+  const { user } = useAuth();
   const [activeView, setActiveView] = useState<AppView>(() =>
     readInitialViewFromHash(),
   );
+  const [requestedChapter, setRequestedChapter] =
+    useState<AudienceChapterId | null>(null);
   const [scanSession, setScanSession] = useState<ScanSession | null>(() =>
     loadStoredScan(),
   );
@@ -197,6 +213,31 @@ export function App() {
   useEffect(() => {
     void checkBackendHealth().then(setApiOnline);
   }, []);
+
+  // Hydrate persisted dailyTargets from PostgreSQL workspace on authenticated sessions
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    void fetchWorkspaceState()
+      .then((ws) => {
+        if (!active || !ws.daily_targets) return;
+        const dt = ws.daily_targets;
+        if (dt.calories > 0) {
+          setDailyTargets(dt);
+          try {
+            localStorage.setItem(TARGETS_STORAGE_KEY, JSON.stringify(dt));
+          } catch {
+            // Ignore offline storage quota errors
+          }
+        }
+      })
+      .catch(() => {
+        // Keep current targets on transient failure
+      });
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   useEffect(() => {
     let active = true;
@@ -361,9 +402,14 @@ export function App() {
       } catch {
         // Ignore storage quota errors
       }
+      if (user) {
+        void saveWorkspaceState({ daily_targets: nextTargets }).catch(() => {
+          // Non-blocking sync
+        });
+      }
       showToast(`Daily target updated to ${nextTargets.calories} kcal`);
     },
-    [showToast],
+    [showToast, user],
   );
 
   const handleApplyProfileAndTargets = useCallback(
@@ -417,6 +463,10 @@ export function App() {
                     handleNavigate("categories");
                   }}
                   onOpenDosha={handleOpenDosha}
+                  onLaunchProfileDashboard={(chapterId) => {
+                    setRequestedChapter(chapterId);
+                    handleNavigate("dashboard");
+                  }}
                   onOpenDashboardGoals={handleOpenDashboardGoals}
                   onOpenAssistant={() => setAssistantOpen(true)}
                   onOpenOnboarding={() => setOnboardingOpen(true)}
@@ -459,7 +509,7 @@ export function App() {
               )}
 
               {activeView === "dashboard" && (
-                <DashboardView
+                <PersonalisedDashboardView
                   dailyTargets={dailyTargets}
                   onUpdateTargets={handleUpdateTargets}
                   onNavigate={handleNavigate}
@@ -467,6 +517,11 @@ export function App() {
                   openGoalsInitially={openGoalsTrigger}
                   onConsumedGoalsTrigger={() => setOpenGoalsTrigger(false)}
                   userProfile={userProfile}
+                  requestedChapter={requestedChapter}
+                  onConsumedRequestedChapter={() => setRequestedChapter(null)}
+                  onProfileDataChanged={() =>
+                    setDashboardRefreshTrigger((n) => n + 1)
+                  }
                 />
               )}
 
@@ -511,6 +566,20 @@ export function App() {
                   onBackToRhythm={handleBackToRhythm}
                   onNavigate={handleNavigate}
                 />
+              )}
+
+              {activeView === "womens-wellness" && (
+                <WomensWellnessView
+                  onNavigate={handleNavigate}
+                  onDataLogged={(msg) => {
+                    setDashboardRefreshTrigger((n) => n + 1);
+                    showToast(msg);
+                  }}
+                />
+              )}
+
+              {activeView === "recommended-products" && (
+                <RecommendedProductsHub referrerSection="navbar_catalog" />
               )}
             </motion.div>
           </AnimatePresence>
@@ -571,8 +640,19 @@ export function App() {
           onClose={() => setOnboardingOpen(false)}
           onComplete={handleApplyProfileAndTargets}
         />
+
+        {/* Authenticated User Login & Registration Modal */}
+        <AuthModal />
       </div>
     </MotionConfig>
+  );
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <AppShell />
+    </AuthProvider>
   );
 }
 

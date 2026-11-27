@@ -5,17 +5,22 @@ import {
   CalendarDays,
   Camera,
   ChevronDown,
+  Flower2,
   HeartPulse,
   Home,
   IndianRupee,
   LayoutDashboard,
+  LogIn,
+  LogOut,
   Menu,
+  Package,
   ShoppingBasket,
   Sparkles,
   UserCircle2,
   Utensils,
   X,
 } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import type { AppView } from "../types/nutrition";
 import { EASE_PREMIUM } from "./MotionPrimitives";
 
@@ -64,6 +69,18 @@ const HUB_ITEMS: {
   icon: typeof CalendarDays;
 }[] = [
   {
+    id: "womens-wellness",
+    label: "Women's Wellness Sanctuary",
+    subtitle: "Period care, nutrition, fitness & BMI",
+    icon: Flower2,
+  },
+  {
+    id: "recommended-products",
+    label: "Curated Product Catalog",
+    subtitle: "Compare essentials across tiers",
+    icon: Package,
+  },
+  {
     id: "planner",
     label: "AI Weekly Meal Planner",
     subtitle: "7-day Indian & balanced calendar",
@@ -98,6 +115,7 @@ export function Navbar({
   alternativesCount,
   apiOnline,
 }: NavbarProps) {
+  const { user, activeProfile, openAuthModal, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [hubOpen, setHubOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -367,15 +385,50 @@ export function Navbar({
 
           {/* Right Action Cluster + Mobile Menu Trigger */}
           <div className="flex items-center gap-2">
+            {user ? (
+              <div className="hidden items-center gap-1.5 md:inline-flex">
+                <button
+                  type="button"
+                  onClick={() => handleSelectView("dashboard")}
+                  title={`Signed in as ${user.email}`}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#34D399]/35 bg-[#34D399]/10 px-3 py-2 text-xs font-semibold text-white transition hover:border-[#34D399]/60"
+                >
+                  <UserCircle2 className="h-3.5 w-3.5 text-[#34D399]" />
+                  <span className="max-w-[120px] truncate">
+                    {activeProfile?.display_name || user.full_name}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void logout()}
+                  title="Sign out"
+                  aria-label="Sign out"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 bg-white/[0.04] text-zinc-300 transition hover:border-rose-400/50 hover:text-rose-200"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openAuthModal("login", null)}
+                title="Sign in or create account"
+                className="hidden items-center gap-1.5 rounded-full border border-[#A3FF12]/40 bg-[#A3FF12]/10 px-3 py-2 text-xs font-semibold text-[#A3FF12] transition hover:bg-[#A3FF12]/20 md:inline-flex"
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                <span>Sign In</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onOpenOnboarding}
-              title="Setup or edit nutrition profile"
-              className="hidden items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-[#A3FF12]/50 hover:text-white md:inline-flex"
+              title="Setup or edit calculator goals"
+              className="hidden items-center gap-1.5 rounded-full border border-white/15 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-[#A3FF12]/50 hover:text-white xl:inline-flex"
             >
-              <UserCircle2 className="h-3.5 w-3.5 text-[#A3FF12]" />
+              <Sparkles className="h-3.5 w-3.5 text-[#A3FF12]" />
               <span className="max-w-[90px] truncate">
-                {profileName ? profileName : "Get Started"}
+                {profileName ? profileName : "Targets"}
               </span>
             </button>
 
@@ -531,9 +584,34 @@ export function Navbar({
                     >
                       <UserCircle2 className="h-4 w-4 shrink-0 text-[#34D399]" />
                       <span>
-                        {profileName ? `Profile: ${profileName}` : "Get Started / Goals Setup"}
+                        {profileName ? `Targets: ${profileName}` : "Calculator / Goals Setup"}
                       </span>
                     </button>
+                    {user ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          void logout();
+                        }}
+                        className="flex items-center gap-2.5 rounded-xl border border-rose-400/25 bg-rose-500/10 px-3.5 py-2.5 text-left text-xs font-semibold text-rose-200"
+                      >
+                        <LogOut className="h-4 w-4 shrink-0" />
+                        <span>Sign Out ({user.full_name})</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          openAuthModal("login", null);
+                        }}
+                        className="flex items-center gap-2.5 rounded-xl border border-[#A3FF12]/35 bg-[#A3FF12]/10 px-3.5 py-2.5 text-left text-xs font-semibold text-[#A3FF12]"
+                      >
+                        <LogIn className="h-4 w-4 shrink-0" />
+                        <span>Sign In / Create Account</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

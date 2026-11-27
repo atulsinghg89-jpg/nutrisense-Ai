@@ -1,18 +1,46 @@
 import type {
+  AccountProfile,
+  AccountProfileCreate,
+  AccountProfileUpdate,
+  ActivityEntry,
+  ActivityEntryCreate,
   AnalyzedIngredient,
+  AuthSessionPayload,
   DashboardFoodEntry,
   DashboardFoodsResponse,
   DashboardSummary,
   EditableFoodItem,
+  HydrationEntry,
+  HydrationEntryCreate,
   MacroTotals,
   MealLogCreate,
   MealLogResponse,
+  ProfileDashboardData,
   RecalculateResponse,
   ScanResponse,
+  TrackedFoodEntry,
+  TrackedFoodEntryCreate,
+  DiagnosticLabEntry,
+  FlowLevel,
+  HealthcareProviderEntry,
+  PeriodRecord,
+  ProductCatalogEntry,
+  ProductCategoryId,
+  SubscriptionPlanPreview,
+  SymptomMoodRecord,
+  WorkspaceStateData,
+  WomensPreferences,
+  WomensPreferencesUpdate,
+  WomensSummaryData,
 } from "../types/nutrition";
 
+const runtimeHost =
+  typeof window !== "undefined" && window.location.hostname
+    ? window.location.hostname
+    : "127.0.0.1";
+
 export const API_BASE_URL = (
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000"
+  import.meta.env.VITE_API_URL || `http://${runtimeHost}:8000`
 ).replace(/\/+$/, "");
 
 export class ApiError extends Error {
@@ -225,6 +253,7 @@ export async function scanFoodImage(file: File): Promise<ScanResponse> {
   const response = await fetch(`${API_BASE_URL}/api/scan`, {
     method: "POST",
     body: formData,
+    credentials: "include",
   });
 
   if (!response.ok) {
@@ -473,4 +502,334 @@ export async function generateAiMealPlan(payload: {
   }
 
   return response.json() as Promise<WeeklyMealPlanApiResponse>;
+}
+
+// ---------------------------------------------------------------------------
+// Cookie-Authenticated User, Profile & Tracker APIs
+// ---------------------------------------------------------------------------
+
+async function authedJsonFetch<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  const headers = new Headers(init.headers);
+  if (init.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...init,
+    headers,
+    credentials: "include",
+  });
+
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+export function registerAccount(payload: {
+  full_name: string;
+  email: string;
+  password: string;
+  initial_profile?: AccountProfileCreate;
+}): Promise<AuthSessionPayload> {
+  return authedJsonFetch<AuthSessionPayload>("/api/auth/register", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function loginAccount(payload: {
+  email: string;
+  password: string;
+}): Promise<AuthSessionPayload> {
+  return authedJsonFetch<AuthSessionPayload>("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function logoutAccount(): Promise<{ ok: boolean }> {
+  return authedJsonFetch<{ ok: boolean }>("/api/auth/logout", {
+    method: "POST",
+  });
+}
+
+export function fetchCurrentSession(): Promise<AuthSessionPayload> {
+  return authedJsonFetch<AuthSessionPayload>("/api/auth/me");
+}
+
+export function fetchUserProfiles(): Promise<AccountProfile[]> {
+  return authedJsonFetch<AccountProfile[]>("/api/profiles");
+}
+
+export function createUserProfile(
+  payload: AccountProfileCreate,
+): Promise<AccountProfile> {
+  return authedJsonFetch<AccountProfile>("/api/profiles", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateUserProfile(
+  profileId: number,
+  payload: AccountProfileUpdate,
+): Promise<AccountProfile> {
+  return authedJsonFetch<AccountProfile>(`/api/profiles/${profileId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteUserProfile(
+  profileId: number,
+): Promise<{ deleted: boolean }> {
+  return authedJsonFetch<{ deleted: boolean }>(`/api/profiles/${profileId}`, {
+    method: "DELETE",
+  });
+}
+
+export function fetchProfileDashboard(params: {
+  profileId: number;
+  date?: string;
+  days?: number;
+}): Promise<ProfileDashboardData> {
+  const qs = new URLSearchParams();
+  qs.set("profile_id", String(params.profileId));
+  if (params.date) qs.set("date", params.date);
+  if (params.days) qs.set("days", String(params.days));
+  qs.set("tz_offset_minutes", String(-new Date().getTimezoneOffset()));
+  return authedJsonFetch<ProfileDashboardData>(
+    `/api/tracker/dashboard?${qs.toString()}`,
+  );
+}
+
+export function createTrackedFoodEntry(
+  payload: TrackedFoodEntryCreate,
+): Promise<TrackedFoodEntry> {
+  return authedJsonFetch<TrackedFoodEntry>("/api/tracker/foods", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteTrackedFoodEntry(
+  entryId: number,
+): Promise<{ deleted: boolean }> {
+  return authedJsonFetch<{ deleted: boolean }>(`/api/tracker/foods/${entryId}`, {
+    method: "DELETE",
+  });
+}
+
+export function createHydrationEntry(
+  payload: HydrationEntryCreate,
+): Promise<HydrationEntry> {
+  return authedJsonFetch<HydrationEntry>("/api/tracker/hydration", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteHydrationEntry(
+  entryId: number,
+): Promise<{ deleted: boolean }> {
+  return authedJsonFetch<{ deleted: boolean }>(
+    `/api/tracker/hydration/${entryId}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function createActivityEntry(
+  payload: ActivityEntryCreate,
+): Promise<ActivityEntry> {
+  return authedJsonFetch<ActivityEntry>("/api/tracker/activities", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteActivityEntry(
+  entryId: number,
+): Promise<{ deleted: boolean }> {
+  return authedJsonFetch<{ deleted: boolean }>(
+    `/api/tracker/activities/${entryId}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Women's Wellness Companion, Centralized Product Catalog & Directory APIs
+// ---------------------------------------------------------------------------
+
+export function fetchWomensSummary(profileId: number): Promise<WomensSummaryData> {
+  return authedJsonFetch<WomensSummaryData>(
+    `/api/women/summary?profile_id=${profileId}`,
+  );
+}
+
+export function updateWomensPreferences(
+  payload: WomensPreferencesUpdate,
+): Promise<WomensPreferences> {
+  return authedJsonFetch<WomensPreferences>("/api/women/preferences", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createPeriodRecord(payload: {
+  profile_id: number;
+  start_date: string;
+  end_date?: string | null;
+  flow_level?: FlowLevel | null;
+  notes?: string | null;
+}): Promise<PeriodRecord> {
+  return authedJsonFetch<PeriodRecord>("/api/women/periods", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deletePeriodRecord(
+  recordId: number,
+): Promise<{ deleted: boolean }> {
+  return authedJsonFetch<{ deleted: boolean }>(`/api/women/periods/${recordId}`, {
+    method: "DELETE",
+  });
+}
+
+export function createSymptomMoodRecord(payload: {
+  profile_id: number;
+  record_date: string;
+  symptoms: string[];
+  symptom_other_text?: string | null;
+  mood?: string | null;
+  mood_other_text?: string | null;
+  notes?: string | null;
+}): Promise<SymptomMoodRecord> {
+  return authedJsonFetch<SymptomMoodRecord>("/api/women/symptoms", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function deleteSymptomRecord(
+  recordId: number,
+): Promise<{ deleted: boolean }> {
+  return authedJsonFetch<{ deleted: boolean }>(
+    `/api/women/symptoms/${recordId}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function exportWomensWellnessData(
+  profileId: number,
+): Promise<Record<string, unknown>> {
+  return authedJsonFetch<Record<string, unknown>>(
+    `/api/women/export?profile_id=${profileId}`,
+  );
+}
+
+export function deleteAllWomensWellnessData(
+  profileId: number,
+): Promise<{ deleted_all: boolean }> {
+  return authedJsonFetch<{ deleted_all: boolean }>(
+    `/api/women/data?profile_id=${profileId}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export async function fetchRecommendedProducts(params?: {
+  category?: ProductCategoryId;
+  audience?: string;
+}): Promise<ProductCatalogEntry[]> {
+  const qs = new URLSearchParams();
+  if (params?.category) qs.set("category", params.category);
+  if (params?.audience) qs.set("audience", params.audience);
+  const query = qs.toString() ? `?${qs.toString()}` : "";
+  const response = await fetch(`${API_BASE_URL}/api/products${query}`);
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json() as Promise<ProductCatalogEntry[]>;
+}
+
+export async function fetchVerifiedProviders(
+  providerType?: string,
+): Promise<HealthcareProviderEntry[]> {
+  const query = providerType
+    ? `?provider_type=${encodeURIComponent(providerType)}`
+    : "";
+  const response = await fetch(`${API_BASE_URL}/api/directory/providers${query}`);
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json() as Promise<HealthcareProviderEntry[]>;
+}
+
+export async function fetchDiagnosticLabs(): Promise<DiagnosticLabEntry[]> {
+  const response = await fetch(`${API_BASE_URL}/api/directory/labs`);
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json() as Promise<DiagnosticLabEntry[]>;
+}
+
+export async function fetchSubscriptionPreviews(): Promise<
+  SubscriptionPlanPreview[]
+> {
+  const response = await fetch(`${API_BASE_URL}/api/directory/subscriptions`);
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json() as Promise<SubscriptionPlanPreview[]>;
+}
+
+export function saveAppointmentPreviewNote(payload: {
+  profile_id: number;
+  provider_slug?: string | null;
+  lab_slug?: string | null;
+  preferred_date?: string | null;
+  notes?: string | null;
+}): Promise<{ id: number; booking_status: string }> {
+  return authedJsonFetch<{ id: number; booking_status: string }>(
+    "/api/directory/appointments",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function deleteOwnAccount(): Promise<{ account_deleted: boolean }> {
+  return authedJsonFetch<{ account_deleted: boolean }>("/api/auth/account", {
+    method: "DELETE",
+  });
+}
+
+export function fetchWorkspaceState(): Promise<WorkspaceStateData> {
+  return authedJsonFetch<WorkspaceStateData>("/api/workspace/state");
+}
+
+export function saveWorkspaceState(payload: {
+  saved_meal_plan?: WorkspaceStateData["saved_meal_plan"];
+  planner_source?: string | null;
+  grocery_items?: WorkspaceStateData["grocery_items"];
+  daily_targets?: WorkspaceStateData["daily_targets"];
+}): Promise<WorkspaceStateData> {
+  return authedJsonFetch<WorkspaceStateData>("/api/workspace/state", {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
 }

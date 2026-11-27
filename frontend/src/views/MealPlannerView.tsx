@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Activity,
@@ -17,7 +17,12 @@ import {
 } from "lucide-react";
 import { AnimatedNumber } from "../components/MotionPrimitives";
 import { HumanProfileSelector } from "../components/HumanSelectionCards";
-import { generateAiMealPlan } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
+import {
+  fetchWorkspaceState,
+  generateAiMealPlan,
+  saveWorkspaceState,
+} from "../lib/api";
 import {
   calculateBMI,
   calculateDailyTargetsFromProfile,
@@ -297,6 +302,7 @@ export function MealPlannerView({
   onApplyProfileTargets,
   onNavigate,
 }: MealPlannerViewProps) {
+  const { user } = useAuth();
   const [planDays, setPlanDays] = useState<MealPlanDay[]>(() => loadSavedPlan());
   const [preference, setPreference] = useState("balanced_indian_vegetarian");
   const [budgetFriendly, setBudgetFriendly] = useState(true);
@@ -304,6 +310,28 @@ export function MealPlannerView({
   const [sourceLabel, setSourceLabel] = useState("Verified Balanced Indian Plan");
   const [error, setError] = useState<string | null>(null);
   const [exportedCount, setExportedCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    void fetchWorkspaceState()
+      .then((ws) => {
+        if (!active || !Array.isArray(ws.saved_meal_plan) || ws.saved_meal_plan.length === 0) {
+          return;
+        }
+        setPlanDays(ws.saved_meal_plan);
+        if (ws.planner_source) setSourceLabel(ws.planner_source);
+        try {
+          localStorage.setItem(PLANNER_STORAGE_KEY, JSON.stringify(ws.saved_meal_plan));
+        } catch {
+          // Ignore storage error
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   // Personalized Profile & BMI Calculator state
   const [profileDraft, setProfileDraft] =
@@ -334,12 +362,19 @@ export function MealPlannerView({
         budget_friendly: budgetFriendly,
       });
       if (result.days.length > 0) {
+        const nextSource = `AI Generated (${result.source})`;
         setPlanDays(result.days);
-        setSourceLabel(`AI Generated (${result.source})`);
+        setSourceLabel(nextSource);
         try {
           localStorage.setItem(PLANNER_STORAGE_KEY, JSON.stringify(result.days));
         } catch {
           // Ignore storage error
+        }
+        if (user) {
+          void saveWorkspaceState({
+            saved_meal_plan: result.days,
+            planner_source: nextSource,
+          }).catch(() => {});
         }
       }
     } catch (err) {
@@ -388,6 +423,9 @@ export function MealPlannerView({
     }
 
     saveGroceryList([...toAdd, ...existing]);
+    if (user) {
+      void saveWorkspaceState({ grocery_items: [...toAdd, ...existing] }).catch(() => {});
+    }
     setExportedCount(toAdd.length);
   }
 

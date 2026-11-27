@@ -26,11 +26,24 @@ import os
 import re
 import urllib.parse
 import urllib.request
-from typing import Literal
+from typing import Any, Callable, Literal
 
 logger = logging.getLogger("nutrisense.nutrition_db")
 
 SourceType = Literal["icmr_nin", "usda_fdc", "unmatched"]
+
+_EXTERNAL_CACHE_READER: Callable[[str, bool], Any] | None = None
+_EXTERNAL_CACHE_WRITER: Callable[[str, Any, str, str | None], None] | None = None
+
+
+def set_external_cache_backend(
+    reader: Callable[[str, bool], Any] | None,
+    writer: Callable[[str, Any, str, str | None], None] | None,
+) -> None:
+    """Register PostgreSQL-backed persistent cache reader and writer for external lookups."""
+    global _EXTERNAL_CACHE_READER, _EXTERNAL_CACHE_WRITER
+    _EXTERNAL_CACHE_READER = reader
+    _EXTERNAL_CACHE_WRITER = writer
 
 
 @dataclass(frozen=True)
@@ -492,17 +505,23 @@ def lookup_local_nutrition_db(query_name: str) -> NutrientProfile100g | None:
     return best_profile
 
 
-@lru_cache(maxsize=256)
 def lookup_usda_fdc_live(query_name: str) -> NutrientProfile100g | None:
-    """Query live USDA FoodData Central Search API for items missing from the local table.
+    """Query live USDA FoodData Central Search API with persistent DB cache & stale fallback.
 
     Uses `USDA_FDC_API_KEY` env var if configured, else falls back to USDA's public `DEMO_KEY`.
     Prioritizes `Foundation` and `SR Legacy` / `Survey (FNDDS)` reference foods.
-    Returns None cleanly on timeout, quota error, or no reliable match.
+    Checks PostgreSQL `external_data_cache` first; writes fresh matches back with TTL; returns
+    cached fallback cleanly if external API is unreachable.
     """
     clean = (query_name or "").strip()
     if len(clean) < 2:
         return None
+
+    query_norm = clean.lower()
+    if _EXTERNAL_CACHE_READER is not None:
+        cached = _EXTERNAL_CACHE_READER(query_norm, False)
+        if cached is not None:
+            return cached
 
     api_key = os.getenv("USDA_FDC_API_KEY", "DEMO_KEY").strip() or "DEMO_KEY"
     params = urllib.parse.urlencode({
@@ -511,6 +530,7 @@ def lookup_usda_fdc_live(query_name: str) -> NutrientProfile100g | None:
         "dataType": "Foundation,SR Legacy,Survey (FNDDS)",
         "api_key": api_key,
     })
+    public_source_url = f"https://api.nal.usda.gov/fdc/v1/foods/search?query={urllib.parse.quote(clean)}"
     url = f"https://api.nal.usda.gov/fdc/v1/foods/search?{params}"
 
     try:
@@ -519,6 +539,8 @@ def lookup_usda_fdc_live(query_name: str) -> NutrientProfile100g | None:
             payload = json.loads(resp.read().decode("utf-8"))
     except Exception as exc:
         logger.debug("USDA live lookup skipped/failed for '%s': %s", clean, exc)
+        if _EXTERNAL_CACHE_READER is not None:
+            return _EXTERNAL_CACHE_READER(query_norm, True)
         return None
 
     foods = payload.get("foods") or []
@@ -561,7 +583,7 @@ def lookup_usda_fdc_live(query_name: str) -> NutrientProfile100g | None:
     if "calories" not in nutrients_map and "protein" not in nutrients_map:
         return None
 
-    return NutrientProfile100g(
+    profile = NutrientProfile100g(
         canonical_name=desc[:120],
         calories=round(nutrients_map.get("calories", 0.0), 2),
         protein=round(nutrients_map.get("protein", 0.0), 2),
@@ -577,6 +599,14 @@ def lookup_usda_fdc_live(query_name: str) -> NutrientProfile100g | None:
         source_type="usda_fdc",
         source_label=f"USDA FoodData Central (FDC #{fdc_id})",
     )
+    if _EXTERNAL_CACHE_WRITER is not None:
+        _EXTERNAL_CACHE_WRITER(
+            query_norm,
+            profile,
+            public_source_url,
+            f"FDC #{fdc_id}" if fdc_id else None,
+        )
+    return profile
 
 
 def resolve_ingredient_nutrition(name: str, use_live_usda: bool = True) -> NutrientProfile100g | None:
