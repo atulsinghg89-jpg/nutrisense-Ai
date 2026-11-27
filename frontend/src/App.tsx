@@ -29,6 +29,7 @@ import type {
   UserNutritionProfile,
 } from "./types/nutrition";
 import { RecommendedProductsHub } from "./components/products/RecommendedProductsHub";
+import { GlobalNutritionView } from "./components/global/GlobalNutritionView";
 import { AlternativesView } from "./views/AlternativesView";
 import { BudgetNutritionView } from "./views/BudgetNutritionView";
 import { CategoriesView } from "./views/CategoriesView";
@@ -37,6 +38,9 @@ import { GroceryListView } from "./views/GroceryListView";
 import { HomeView } from "./views/HomeView";
 import { IndianFoodsView } from "./views/IndianFoodsView";
 import { MealPlannerView } from "./views/MealPlannerView";
+import { MenHealthView } from "./views/MenHealthView";
+import { PatientNutritionView } from "./views/PatientNutritionView";
+import { BabyNutritionView } from "./views/BabyNutritionView";
 import { PersonalisedDashboardView } from "./views/PersonalisedDashboardView";
 import { ScannerView } from "./views/ScannerView";
 import { WomensWellnessView } from "./views/WomensWellnessView";
@@ -91,6 +95,9 @@ function readInitialViewFromHash(): AppView {
   ) {
     return "dosha";
   }
+  if (hash === "women" || hash === "women-wellness") {
+    return "womens-wellness";
+  }
   if (
     hash === "home" ||
     hash === "scanner" ||
@@ -102,7 +109,11 @@ function readInitialViewFromHash(): AppView {
     hash === "grocery" ||
     hash === "budget" ||
     hash === "womens-wellness" ||
-    hash === "recommended-products"
+    hash === "recommended-products" ||
+    hash === "global-nutrition" ||
+    hash === "men" ||
+    hash === "baby" ||
+    hash === "patient"
   ) {
     return hash;
   }
@@ -505,7 +516,14 @@ function AppShell() {
               )}
 
               {activeView === "categories" && (
-                <CategoriesView initialCategory={selectedCategory} />
+                <CategoriesView
+                  initialCategory={selectedCategory}
+                  onNavigate={handleNavigate}
+                  onDataLogged={(msg) => {
+                    setDashboardRefreshTrigger((n) => n + 1);
+                    showToast(msg);
+                  }}
+                />
               )}
 
               {activeView === "dashboard" && (
@@ -522,6 +540,7 @@ function AppShell() {
                   onProfileDataChanged={() =>
                     setDashboardRefreshTrigger((n) => n + 1)
                   }
+                  onDataLogged={showToast}
                 />
               )}
 
@@ -580,6 +599,28 @@ function AppShell() {
 
               {activeView === "recommended-products" && (
                 <RecommendedProductsHub referrerSection="navbar_catalog" />
+              )}
+
+              {activeView === "global-nutrition" && (
+                <GlobalNutritionView
+                  onNavigate={handleNavigate}
+                  onDataLogged={(msg) => {
+                    setDashboardRefreshTrigger((n) => n + 1);
+                    showToast(msg);
+                  }}
+                />
+              )}
+
+              {activeView === "men" && (
+                <MenHealthView onNavigate={handleNavigate} />
+              )}
+
+              {activeView === "baby" && (
+                <BabyNutritionView onNavigate={handleNavigate} />
+              )}
+
+              {activeView === "patient" && (
+                <PatientNutritionView onNavigate={handleNavigate} />
               )}
             </motion.div>
           </AnimatePresence>

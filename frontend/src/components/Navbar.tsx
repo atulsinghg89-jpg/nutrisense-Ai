@@ -5,7 +5,7 @@ import {
   CalendarDays,
   Camera,
   ChevronDown,
-  Flower2,
+  Globe2,
   HeartPulse,
   Home,
   IndianRupee,
@@ -69,10 +69,10 @@ const HUB_ITEMS: {
   icon: typeof CalendarDays;
 }[] = [
   {
-    id: "womens-wellness",
-    label: "Women's Wellness Sanctuary",
-    subtitle: "Period care, nutrition, fitness & BMI",
-    icon: Flower2,
+    id: "global-nutrition",
+    label: "Global Nutrition Intelligence",
+    subtitle: "Balance Top, MEXT Tables & Bento Planner",
+    icon: Globe2,
   },
   {
     id: "recommended-products",
@@ -147,6 +147,8 @@ export function Navbar({
   }
 
   const isHubActive =
+    activeView === "global-nutrition" ||
+    activeView === "recommended-products" ||
     activeView === "planner" ||
     activeView === "indian-foods" ||
     activeView === "grocery" ||

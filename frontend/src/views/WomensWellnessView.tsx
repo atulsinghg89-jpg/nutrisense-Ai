@@ -50,6 +50,7 @@ import type {
 interface WomensWellnessViewProps {
   onNavigate: (view: AppView) => void;
   onDataLogged?: (message: string) => void;
+  embeddedInWomenSection?: boolean;
 }
 
 type WomenSectionId =
@@ -137,6 +138,7 @@ function todayYmd(): string {
 export function WomensWellnessView({
   onNavigate,
   onDataLogged,
+  embeddedInWomenSection = false,
 }: WomensWellnessViewProps) {
   const { user, activeProfile, activeProfileId, openAuthModal } = useAuth();
   const [activeSection, setActiveSection] = useState<WomenSectionId>("period");
@@ -281,9 +283,9 @@ export function WomensWellnessView({
 
   return (
     /* Isolated Floral Warm Ivory & Rose Sanctuary Container (preserves global dark site outside) */
-    <div className="mx-auto max-w-7xl px-3 py-6 sm:px-6 lg:px-8">
+    <div className={embeddedInWomenSection ? "py-2" : "mx-auto max-w-7xl px-3 py-6 sm:px-6 lg:px-8"}>
       <div className="space-y-6 rounded-[2.25rem] border border-[#ebd0d9] bg-gradient-to-b from-[#fffaf8] via-[#fff6f8] to-[#f8faf7] p-4 text-[#2d1a24] shadow-[0_24px_64px_-24px_rgba(155,61,87,0.28)] sm:p-7 lg:p-9">
-        {/* Top Sanctuary Welcome Header */}
+        {/* Top Sanctuary Welcome Header & Live Women Wellness Dashboard Strip */}
         <header className="relative overflow-hidden rounded-[1.85rem] border border-[#f0dce2] bg-white p-6 sm:p-8">
           <BotanicalCornerBloom className="absolute -top-4 -right-4 h-44 w-44 text-[#c96a7e]" />
 
@@ -292,7 +294,7 @@ export function WomensWellnessView({
               <div className="flex flex-wrap items-center gap-2">
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e6c5ce] bg-[#fff5f7] px-3 py-1 text-xs font-semibold text-[#9b3d57]">
                   <Flower2 className="h-3.5 w-3.5 text-[#c96a7e]" />
-                  Women&apos;s Wellness Sanctuary
+                  Women Section • Wellness Dashboard &amp; Sanctuary
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full border border-[#cde2d4] bg-[#eef6f1] px-3 py-1 text-xs font-semibold text-[#2b5239]">
                   <ShieldCheck className="h-3.5 w-3.5" />
@@ -310,8 +312,47 @@ export function WomensWellnessView({
               <p className="max-w-2xl text-sm leading-relaxed text-[#644a57]">
                 Warm botanical comfort uniting gentle cycle tracking, balanced nutrition, recovery
                 movement, verified educational sources, and transparent healthcare navigation — built
-                directly onto your NutriSense AI account.
+                directly inside NutriSense AI&apos;s Women chapter.
               </p>
+
+              {/* Women Wellness Dashboard Quick Overview Cards */}
+              <div className="grid grid-cols-2 gap-2.5 pt-1 sm:grid-cols-4">
+                <div className="rounded-2xl border border-[#f0dce2] bg-[#fff8fa] px-3 py-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#9b3d57]">
+                    Nutrition Today
+                  </p>
+                  <p className="mt-0.5 font-mono text-sm font-extrabold text-[#2d1a24]">
+                    {profileDashboard ? Math.round(profileDashboard.nutrition_summary.calories) : 0} kcal
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[#e3d8ee] bg-[#faf7fd] px-3 py-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#5e4078]">
+                    Hydration
+                  </p>
+                  <p className="mt-0.5 font-mono text-sm font-extrabold text-[#2d1a24]">
+                    {profileDashboard ? Math.round(profileDashboard.hydration_summary.total_ml) : 0} mL
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[#d8e6dc] bg-[#f4f8f4] px-3 py-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#2b5239]">
+                    Movement
+                  </p>
+                  <p className="mt-0.5 font-mono text-sm font-extrabold text-[#2d1a24]">
+                    {profileDashboard ? profileDashboard.activity_summary.total_minutes : 0} min
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-[#f0dce2] bg-[#fff5f7] px-3 py-2.5">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-[#9b3d57]">
+                    Cycle Estimate
+                  </p>
+                  <p className="mt-0.5 font-mono text-xs font-bold text-[#2d1a24]">
+                    {womensSummary?.estimate.has_estimate &&
+                    womensSummary.estimate.next_period_estimated_start
+                      ? womensSummary.estimate.next_period_estimated_start
+                      : "Optional"}
+                  </p>
+                </div>
+              </div>
 
               <div className="flex flex-wrap items-center gap-2.5 pt-1">
                 {!user ? (
@@ -336,7 +377,7 @@ export function WomensWellnessView({
               <img
                 src="/images/women-wellness-hero.jpg"
                 alt="Warm botanical wellness bowl and herbal tea"
-                className="h-52 w-full object-cover"
+                className="h-56 w-full object-cover"
               />
             </div>
           </div>

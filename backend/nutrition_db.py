@@ -30,7 +30,7 @@ from typing import Any, Callable, Literal
 
 logger = logging.getLogger("nutrisense.nutrition_db")
 
-SourceType = Literal["icmr_nin", "usda_fdc", "unmatched"]
+SourceType = Literal["icmr_nin", "usda_fdc", "japan_mext", "unmatched"]
 
 _EXTERNAL_CACHE_READER: Callable[[str, bool], Any] | None = None
 _EXTERNAL_CACHE_WRITER: Callable[[str, Any, str, str | None], None] | None = None
@@ -63,6 +63,11 @@ class NutrientProfile100g:
     source_type: SourceType = "icmr_nin"
     source_label: str = "ICMR–NIN IFCT 2017"
     aliases: tuple[str, ...] = ()
+    country_code: Literal["IN", "JP", "GLOBAL"] = "IN"
+    food_category: str = "General"
+    preparation_state: str = "Standard Reference"
+    source_version: str = "ICMR–NIN IFCT 2017"
+    verification_status: str = "verified_table"
 
 
 # Verified per-100g composition records prioritizing Indian dietary items (ICMR–NIN IFCT 2017)
@@ -447,6 +452,188 @@ LOCAL_NUTRITION_TABLE: list[NutrientProfile100g] = [
         sodium_mg=38758.0,
         source_type="usda_fdc", source_label="USDA FoodData Central (Table Salt)",
         aliases=("salt", "table salt", "namak"),
+        country_code="GLOBAL", food_category="Seasonings", source_version="USDA SR Legacy",
+    ),
+    # --- Japanese National Composition Tables (MEXT 8th Revised Edition, 2020/2023) ---
+    NutrientProfile100g(
+        canonical_name="Japanese Cooked White Rice (Short-Grain)",
+        calories=156.0, protein=2.5, carbohydrates=37.1, fats=0.3, fibre=1.5, sugar=0.1,
+        sodium_mg=1.0, calcium_mg=5.0, iron_mg=0.1, potassium_mg=29.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Polished Rice Cooked",
+        aliases=("japanese rice", "short grain rice", "gohan", "hakumai", "steamed japanese rice"),
+        country_code="JP", food_category="Grain Dishes", preparation_state="Steamed / Boiled",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Japanese Cooked Brown Rice (Genmai)",
+        calories=152.0, protein=2.8, carbohydrates=35.6, fats=1.0, fibre=1.4, sugar=0.2,
+        sodium_mg=2.0, calcium_mg=9.0, iron_mg=0.5, potassium_mg=95.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Brown Rice Cooked",
+        aliases=("japanese brown rice", "genmai", "cooked brown rice jp"),
+        country_code="JP", food_category="Grain Dishes", preparation_state="Steamed / Boiled",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Light Rice Miso Paste (Fermented Soybean Seasoning)",
+        calories=182.0, protein=12.5, carbohydrates=20.7, fats=6.0, fibre=5.5, sugar=5.8,
+        sodium_mg=4800.0, calcium_mg=50.0, iron_mg=3.0, potassium_mg=390.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Rice Miso",
+        aliases=("miso", "miso paste", "fermented soybean paste", "white miso", "awase miso"),
+        country_code="JP", food_category="Fermented Soy & Seasonings", preparation_state="Fermented Paste",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Firm Tofu (Momen Pressed Bean Curd)",
+        calories=73.0, protein=7.0, carbohydrates=1.5, fats=4.9, fibre=1.1, sugar=0.4,
+        sodium_mg=5.0, calcium_mg=120.0, iron_mg=1.5, potassium_mg=150.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Momen Tofu",
+        aliases=("momen tofu", "firm tofu", "japanese tofu", "tofu"),
+        country_code="JP", food_category="Soybeans & Plant Protein", preparation_state="Fresh / Unseasoned",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Silken Tofu (Soft Custard Bean Curd)",
+        calories=56.0, protein=5.3, carbohydrates=2.0, fats=3.5, fibre=0.9, sugar=0.5,
+        sodium_mg=4.0, calcium_mg=75.0, iron_mg=1.2, potassium_mg=150.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Kinugoshi Tofu",
+        aliases=("silken tofu", "soft tofu", "kinugoshi"),
+        country_code="JP", food_category="Soybeans & Plant Protein", preparation_state="Fresh / Unseasoned",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Fermented Whole Soybeans (Natto)",
+        calories=190.0, protein=16.5, carbohydrates=12.1, fats=10.0, fibre=6.7, sugar=1.8,
+        sodium_mg=2.0, calcium_mg=90.0, iron_mg=3.3, potassium_mg=660.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Natto",
+        aliases=("natto", "fermented soybeans", "itohiki natto"),
+        country_code="JP", food_category="Soybeans & Plant Protein", preparation_state="Fermented Whole Beans",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Boiled Edamame (Green Immature Soybeans)",
+        calories=135.0, protein=11.5, carbohydrates=8.8, fats=6.2, fibre=4.9, sugar=2.2,
+        sodium_mg=3.0, calcium_mg=75.0, iron_mg=2.4, vitamin_c_mg=18.0, potassium_mg=590.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Boiled Edamame",
+        aliases=("edamame", "green soybeans", "boiled edamame"),
+        country_code="JP", food_category="Soybeans & Plant Protein", preparation_state="Boiled Pods",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Chum Salmon Fillet (Grilled / Baked)",
+        calories=133.0, protein=22.3, carbohydrates=0.1, fats=4.1, fibre=0.0, sugar=0.0,
+        sodium_mg=60.0, calcium_mg=14.0, iron_mg=0.7, potassium_mg=350.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Chum Salmon",
+        aliases=("chum salmon", "japanese salmon", "shiozake", "grilled salmon jp"),
+        country_code="JP", food_category="Fish & Seafood", preparation_state="Grilled / Edible Fillet",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Pacific Mackerel Fillet (Baked / Grilled)",
+        calories=211.0, protein=20.6, carbohydrates=0.3, fats=13.8, fibre=0.0, sugar=0.0,
+        sodium_mg=115.0, calcium_mg=9.0, iron_mg=1.5, potassium_mg=300.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Mackerel",
+        aliases=("saba", "grilled mackerel", "pacific mackerel"),
+        country_code="JP", food_category="Fish & Seafood", preparation_state="Grilled / Edible Fillet",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Rehydrated Wakame Seaweed",
+        calories=16.0, protein=1.9, carbohydrates=3.9, fats=0.3, fibre=3.2, sugar=0.1,
+        sodium_mg=570.0, calcium_mg=73.0, iron_mg=0.9, potassium_mg=50.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Wakame Rinsed",
+        aliases=("wakame", "wakame seaweed", "kelp salad"),
+        country_code="JP", food_category="Seaweed & Marine Vegetables", preparation_state="Rinsed & Rehydrated",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Roasted Nori Seaweed Sheets",
+        calories=188.0, protein=41.4, carbohydrates=44.3, fats=3.7, fibre=36.0, sugar=0.8,
+        sodium_mg=530.0, calcium_mg=280.0, iron_mg=11.4, vitamin_c_mg=210.0, potassium_mg=2400.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Yaki-Nori",
+        aliases=("nori", "roasted nori", "seaweed sheet"),
+        country_code="JP", food_category="Seaweed & Marine Vegetables", preparation_state="Dried & Toasted",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Boiled Thick Wheat Noodles (Udon)",
+        calories=95.0, protein=2.6, carbohydrates=20.8, fats=0.4, fibre=0.8, sugar=0.3,
+        sodium_mg=120.0, calcium_mg=7.0, iron_mg=0.1, potassium_mg=9.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Boiled Udon",
+        aliases=("udon", "udon noodles", "boiled udon"),
+        country_code="JP", food_category="Grain Dishes", preparation_state="Boiled & Drained",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Boiled Buckwheat Noodles (Soba)",
+        calories=114.0, protein=4.8, carbohydrates=22.1, fats=1.0, fibre=1.5, sugar=0.4,
+        sodium_mg=120.0, calcium_mg=11.0, iron_mg=0.6, potassium_mg=44.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Boiled Soba",
+        aliases=("soba", "buckwheat noodles", "boiled soba"),
+        country_code="JP", food_category="Grain Dishes", preparation_state="Boiled & Rinsed",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Daikon Radish Root (Fresh / Braised)",
+        calories=18.0, protein=0.5, carbohydrates=4.1, fats=0.1, fibre=1.4, sugar=2.2,
+        sodium_mg=10.0, calcium_mg=24.0, iron_mg=0.2, vitamin_c_mg=12.0, potassium_mg=230.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Daikon Root",
+        aliases=("daikon", "japanese radish", "white radish"),
+        country_code="JP", food_category="Vegetable Dishes", preparation_state="Raw / Lightly Simmered",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Shiitake Mushrooms (Fresh / Simmered)",
+        calories=19.0, protein=3.0, carbohydrates=4.9, fats=0.4, fibre=3.5, sugar=0.2,
+        sodium_mg=1.0, calcium_mg=6.0, iron_mg=0.4, potassium_mg=280.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Shiitake Raw",
+        aliases=("shiitake", "shiitake mushroom"),
+        country_code="JP", food_category="Vegetable Dishes", preparation_state="Fresh / Simmered",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Steamed Kabocha Winter Squash",
+        calories=78.0, protein=1.9, carbohydrates=20.6, fats=0.3, fibre=3.5, sugar=3.1,
+        sodium_mg=1.0, calcium_mg=18.0, iron_mg=0.5, vitamin_c_mg=33.0, potassium_mg=430.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Japanese Pumpkin",
+        aliases=("kabocha", "japanese squash", "chestnut pumpkin"),
+        country_code="JP", food_category="Vegetable Dishes", preparation_state="Steamed / Braised",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Boiled Spinach Greens (Ohitashi Base)",
+        calories=20.0, protein=2.6, carbohydrates=3.1, fats=0.5, fibre=3.6, sugar=0.4,
+        sodium_mg=6.0, calcium_mg=69.0, iron_mg=0.9, vitamin_c_mg=19.0, potassium_mg=490.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Spinach Boiled",
+        aliases=("ohitashi spinach", "boiled japanese spinach", "horenso"),
+        country_code="JP", food_category="Vegetable Dishes", preparation_state="Blanched & Pressed",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Japanese Sweet Rolled Omelette (Tamagoyaki)",
+        calories=139.0, protein=11.1, carbohydrates=4.2, fats=8.6, fibre=0.0, sugar=3.8,
+        sodium_mg=350.0, calcium_mg=45.0, iron_mg=1.5, potassium_mg=120.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. Composite (Egg Omelette)",
+        aliases=("tamagoyaki", "rolled omelette", "japanese omelette"),
+        country_code="JP", food_category="Fish, Meat, Eggs & Soybeans", preparation_state="Pan-Rolled",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="estimated_composite",
+    ),
+    NutrientProfile100g(
+        canonical_name="Unsweetened Brewed Green Tea (Sencha)",
+        calories=2.0, protein=0.2, carbohydrates=0.2, fats=0.0, fibre=0.0, sugar=0.0,
+        sodium_mg=1.0, calcium_mg=3.0, iron_mg=0.0, vitamin_c_mg=6.0, potassium_mg=27.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. (2020/2023) — Sencha Infusion",
+        aliases=("green tea", "sencha", "unsweetened green tea", "japanese tea"),
+        country_code="JP", food_category="Water & Tea", preparation_state="Brewed Unsweetened",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="verified_table",
+    ),
+    NutrientProfile100g(
+        canonical_name="Tofu & Wakame Miso Soup (Standard Broth)",
+        calories=26.0, protein=1.9, carbohydrates=2.8, fats=0.9, fibre=0.6, sugar=0.8,
+        sodium_mg=480.0, calcium_mg=21.0, iron_mg=0.4, potassium_mg=88.0,
+        source_type="japan_mext", source_label="MEXT STFCJ 8th Rev. Derived Dish (Dashi + 8% Miso + Tofu + Wakame)",
+        aliases=("miso soup", "tofu miso soup", "japanese miso soup"),
+        country_code="JP", food_category="Soups & Broths", preparation_state="Simmered Soup Bowl",
+        source_version="MEXT STFCJ 8th Revised Edition", verification_status="estimated_composite",
     ),
 ]
 
@@ -610,10 +797,33 @@ def lookup_usda_fdc_live(query_name: str) -> NutrientProfile100g | None:
 
 
 def resolve_ingredient_nutrition(name: str, use_live_usda: bool = True) -> NutrientProfile100g | None:
-    """Resolve an ingredient strictly from verified ICMR–NIN or USDA FoodData Central sources."""
+    """Resolve an ingredient strictly from verified ICMR–NIN, MEXT, or USDA FoodData Central sources."""
     local = lookup_local_nutrition_db(name)
     if local is not None:
         return local
     if use_live_usda:
         return lookup_usda_fdc_live(name)
     return None
+
+
+def list_unified_foods(
+    country_code: str | None = None,
+    food_category: str | None = None,
+    query: str | None = None,
+) -> list[NutrientProfile100g]:
+    """Return structured per-100g food records across ICMR-NIN, Japan MEXT, and USDA tables."""
+    q = (query or "").strip().lower()
+    cat = (food_category or "").strip().lower()
+    country = (country_code or "").strip().upper()
+    out: list[NutrientProfile100g] = []
+    for entry in LOCAL_NUTRITION_TABLE:
+        if country and entry.country_code != country:
+            continue
+        if cat and entry.food_category.lower() != cat:
+            continue
+        if q:
+            haystack = " ".join([entry.canonical_name, entry.food_category, *entry.aliases]).lower()
+            if q not in haystack:
+                continue
+        out.append(entry)
+    return out

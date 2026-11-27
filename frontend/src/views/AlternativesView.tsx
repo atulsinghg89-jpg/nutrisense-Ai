@@ -5,6 +5,7 @@ import {
   ArrowRight,
   Camera,
   CheckCircle2,
+  Globe2,
   Leaf,
   Scale,
   Search,
@@ -589,6 +590,65 @@ export function AlternativesView({
                   </span>
                 )}
               </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Japanese Balanced Meal Alternatives Integration */}
+      <section className="rounded-3xl border border-[#34D399]/25 bg-gradient-to-br from-[#121914] via-[#101411] to-[#0B0F0C] p-6 sm:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#A3FF12]/35 bg-[#A3FF12]/10 px-3 py-1 text-xs font-semibold text-[#A3FF12]">
+              <Globe2 className="h-3.5 w-3.5" />
+              Japanese &amp; Cross-Cuisine Healthy Alternatives
+            </span>
+            <h2 className="mt-2 font-display text-2xl font-bold text-white">
+              Whole-Food Swaps Inspired by Japanese Washoku Balance
+            </h2>
+            <p className="mt-1 text-xs text-[#A1A1AA]">
+              Grounded in MEXT Standard Tables of Food Composition (8th Revised Edition) alongside ICMR–NIN IFCT 2017.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigate("global-nutrition")}
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#A3FF12] px-4 py-2.5 text-xs font-bold text-[#050706] transition hover:bg-[#b8ff42]"
+          >
+            <span>Open India vs Japan Comparison</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-4 md:grid-cols-3">
+          {[
+            {
+              swapTitle: "Steamed Boiled Edamame Pods (80g)",
+              replaces: "Deep-Fried Salted Crisps / Namkeen",
+              why: "Delivers ~9.2 g plant protein, ~3.9 g fibre, and negligible sodium vs frying oils (~108 kcal per 80g).",
+            },
+            {
+              swapTitle: "Grilled Chum Salmon & Grated Daikon (90g)",
+              replaces: "Breaded Deep-Fried Cutlets",
+              why: "Broiled fillet keeps lean fats low (~120 kcal, ~20.1 g protein per 90g) without heavy batter absorption.",
+            },
+            {
+              swapTitle: "Pressed Firm Tofu Steak with Steamed Greens (150g)",
+              replaces: "Heavy Butter-Cream Rich Gravies",
+              why: "Lowers saturated fat sharply while giving ~10.5 g protein and ~180 mg calcium per 150g (~110 kcal).",
+            },
+          ].map((item) => (
+            <div
+              key={item.swapTitle}
+              className="rounded-2xl border border-white/[0.08] bg-[#0A0A0A] p-4 text-xs"
+            >
+              <span className="font-mono text-[10px] font-bold uppercase text-[#34D399]">
+                Replaces: {item.replaces}
+              </span>
+              <h3 className="mt-1 font-display text-sm font-bold text-white">
+                {item.swapTitle}
+              </h3>
+              <p className="mt-1.5 leading-relaxed text-[#A1A1AA]">{item.why}</p>
             </div>
           ))}
         </div>

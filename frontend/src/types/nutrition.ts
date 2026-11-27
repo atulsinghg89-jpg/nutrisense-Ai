@@ -10,7 +10,11 @@ export type AppView =
   | "budget"
   | "dosha"
   | "womens-wellness"
-  | "recommended-products";
+  | "recommended-products"
+  | "global-nutrition"
+  | "men"
+  | "baby"
+  | "patient";
 
 export interface ChatMessage {
   id: string;
@@ -104,7 +108,7 @@ export interface ScannedFoodItem extends FoodItemMacros {
   fibre?: number;
   sugar?: number;
   sodium_mg?: number;
-  source_type?: "icmr_nin" | "usda_fdc" | "unmatched";
+  source_type?: "icmr_nin" | "usda_fdc" | "japan_mext" | "unmatched";
   source_label?: string;
   confident?: boolean;
   needs_confirmation?: boolean;
@@ -745,4 +749,257 @@ export interface SubscriptionPlanPreview {
   features: string[];
   status: string;
   billing_active: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Global Nutrition & Japan-Inspired National Nutrition Intelligence Types
+// ---------------------------------------------------------------------------
+
+export interface GlobalCountryInfo {
+  country_code: string;
+  name: string;
+  system_inspiration: string;
+  primary_source: string;
+  foods_count: number;
+  disclaimer: string;
+}
+
+export interface GlobalComparePreset {
+  id: string;
+  title: string;
+  left_slug: string;
+  right_slug: string;
+  left_grams: number;
+  right_grams: number;
+}
+
+export interface GlobalFoodItem {
+  id: number;
+  slug: string;
+  name: string;
+  country_code: "JP" | "IN" | string;
+  food_category: string;
+  is_vegetarian: boolean;
+  serving_label: string;
+  serving_grams: number;
+  preparation_method: string;
+  preparation_state: string;
+  calories_per_100g: number;
+  protein_per_100g: number;
+  carbs_per_100g: number;
+  fats_per_100g: number;
+  fibre_per_100g: number;
+  iron_mg_per_100g: number;
+  calcium_mg_per_100g: number;
+  sodium_mg_per_100g: number;
+  allergens: string[];
+  healthier_swap_note: string;
+  data_source: string;
+  source_version: string;
+  publication_year: number;
+  verification_status: string;
+  has_verified_image: boolean;
+  image_path: string;
+}
+
+export interface ScaledGlobalFood {
+  slug: string;
+  name: string;
+  country_code: string;
+  food_category: string;
+  is_vegetarian: boolean;
+  grams: number;
+  serving_label: string;
+  preparation_method: string;
+  preparation_state: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fats: number;
+  fibre: number;
+  iron_mg: number;
+  calcium_mg: number;
+  sodium_mg: number;
+  allergens: string[];
+  healthier_swap_note: string;
+  data_source: string;
+  source_version: string;
+  publication_year: number;
+  verification_status: string;
+  has_verified_image: boolean;
+  image_path: string;
+}
+
+export interface GlobalComparisonResponse {
+  left: ScaledGlobalFood;
+  right: ScaledGlobalFood;
+  deltas: {
+    calories: number;
+    protein: number;
+    fibre: number;
+    sodium_mg: number;
+    calcium_mg: number;
+  };
+  key_differences: string[];
+  allergen_warnings: string[];
+  better_fit_notes: string[];
+  budget_note: string;
+}
+
+export interface FoodBalanceGroup {
+  key: string;
+  layer_order: number;
+  name: string;
+  recommended_sv_min: number;
+  recommended_sv_max: number;
+  unit_label: string;
+  unit_definition: string;
+  examples: string[];
+  color_token: string;
+  current_value: number;
+  balance_status: "no_data_yet" | "underrepresented" | "balanced" | "overrepresented";
+}
+
+export interface FoodBalanceGuideResponse {
+  title: string;
+  concept_overview: string;
+  serving_unit_explainer: string;
+  disclaimer: string;
+  groups: FoodBalanceGroup[];
+  insights: string[];
+  tracked_entries_count: number;
+}
+
+export interface FoodEducationTopic {
+  slug: string;
+  title: string;
+  tag: string;
+  summary: string;
+  key_points: string[];
+  daily_tip: string;
+  quiz_question: string;
+  quiz_options: string[];
+  correct_index: number;
+}
+
+export interface FoodEducationProgressEntry {
+  id: number;
+  profile_id: number;
+  topic_slug: string;
+  completed: boolean;
+  quiz_score: number;
+  quiz_total: number;
+  notes: string | null;
+  updated_at: string;
+}
+
+export interface BentoSlotItem extends ScaledGlobalFood {
+  slot: string;
+  replacement_options: { slug: string; name: string }[];
+}
+
+export interface BentoPlanResponse {
+  plan_title: string;
+  meal_category: string;
+  diet_preference: string;
+  calorie_target: number;
+  protein_target: number;
+  budget: string;
+  items: BentoSlotItem[];
+  totals: {
+    total_grams: number;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+    fibre: number;
+    iron_mg: number;
+    calcium_mg: number;
+    sodium_mg: number;
+  };
+  preparation_instructions: string[];
+  grocery_items: string[];
+  source_attribution: string;
+  saved_plan_id: number | null;
+}
+
+export interface SeasonalFoodRecord {
+  id: number;
+  slug: string;
+  country_code: "JP" | "IN" | string;
+  season: "spring" | "summer" | "autumn" | "winter" | string;
+  food_group: string;
+  name: string;
+  is_vegetarian: boolean;
+  regional_availability_note: string;
+  nutritional_highlights: string;
+  seasonal_recipe_idea: string;
+  paired_indian_alternative: string;
+  data_source: string;
+  verification_status: string;
+  has_verified_image: boolean;
+  image_path: string;
+}
+
+export interface TraditionalJapaneseMeal {
+  id: string;
+  title: string;
+  category: string;
+  is_vegetarian: boolean;
+  serving_label: string;
+  serving_grams: number;
+  ingredient_breakdown: {
+    slug: string;
+    name: string;
+    grams: number;
+    calories: number;
+    protein: number;
+  }[];
+  totals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+    fibre: number;
+    iron_mg: number;
+    calcium_mg: number;
+    sodium_mg: number;
+  };
+  cooking_instructions: string[];
+  allergens: string[];
+  healthier_indian_alternative: string;
+  data_source: string;
+  has_verified_image: boolean;
+  image_path: string;
+}
+
+export interface GlobalDashboardSummary {
+  profile_id: number;
+  period_days: number;
+  today_totals: {
+    calories: number;
+    protein: number;
+    carbs: number;
+    fats: number;
+    fibre: number;
+    hydration_ml: number;
+    activity_minutes: number;
+  };
+  cuisine_breakdown: {
+    indian_meals: number;
+    japanese_meals: number;
+    other_balanced_meals: number;
+  };
+  meal_diversity_count: number;
+  education_completed_count: number;
+  education_total_topics: number;
+  weekly_trends: {
+    date: string;
+    calories: number;
+    protein: number;
+    fibre: number;
+    water_ml: number;
+    activity_minutes: number;
+  }[];
+  insights_note: string;
 }

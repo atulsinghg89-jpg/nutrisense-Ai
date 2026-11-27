@@ -1,13 +1,15 @@
-import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowRight,
+  Baby,
   BookOpen,
   Flower2,
+  HeartPulse,
   LayoutDashboard,
   Lock,
   ShieldCheck,
   Sparkles,
+  User,
   UserPlus,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -25,13 +27,80 @@ interface FourAudienceChaptersSectionProps {
   onLaunchProfileDashboard: (chapterId: AudienceChapterId) => void;
 }
 
+interface ChapterVisualTheme {
+  icon: typeof User;
+  cardSurface: string;
+  hoverBorderShadow: string;
+  bottomFadeClass: string;
+  badgeStyle: string;
+  titleHover: string;
+  highlightIconColor: string;
+  primaryButtonStyle: string;
+  focusRing: string;
+}
+
+const CHAPTER_CARD_THEMES: Record<AudienceChapterId, ChapterVisualTheme> = {
+  men: {
+    icon: User,
+    cardSurface: "border-white/[0.1] bg-[#101411]",
+    hoverBorderShadow:
+      "hover:border-[#A3FF12]/50 hover:shadow-[0_16px_38px_rgba(163,255,18,0.10)]",
+    bottomFadeClass: "from-[#101411] via-[#101411]/35 to-transparent",
+    badgeStyle: "border-[#A3FF12]/40 bg-[#070B08]/85 text-[#A3FF12]",
+    titleHover: "group-hover:text-[#A3FF12]",
+    highlightIconColor: "text-[#34D399]",
+    primaryButtonStyle:
+      "bg-[#A3FF12] text-[#050706] shadow-[0_0_20px_rgba(163,255,18,0.2)] hover:bg-[#b8ff42]",
+    focusRing: "focus-visible:ring-[#A3FF12]",
+  },
+  women: {
+    icon: Flower2,
+    cardSurface: "border-rose-300/20 bg-[#161015]",
+    hoverBorderShadow:
+      "hover:border-rose-300/55 hover:shadow-[0_16px_38px_rgba(253,164,175,0.14)]",
+    bottomFadeClass: "from-[#161015] via-[#161015]/35 to-transparent",
+    badgeStyle: "border-rose-300/45 bg-[#1B0F17]/85 text-rose-200",
+    titleHover: "group-hover:text-rose-200",
+    highlightIconColor: "text-rose-300",
+    primaryButtonStyle:
+      "border border-rose-300/35 bg-rose-300/15 text-rose-100 hover:bg-rose-300/25",
+    focusRing: "focus-visible:ring-rose-300",
+  },
+  babies: {
+    icon: Baby,
+    cardSurface: "border-amber-200/20 bg-[#14130E]",
+    hoverBorderShadow:
+      "hover:border-amber-200/55 hover:shadow-[0_16px_38px_rgba(252,211,77,0.12)]",
+    bottomFadeClass: "from-[#14130E] via-[#14130E]/35 to-transparent",
+    badgeStyle: "border-amber-200/45 bg-[#19160E]/85 text-amber-200",
+    titleHover: "group-hover:text-amber-200",
+    highlightIconColor: "text-amber-300",
+    primaryButtonStyle:
+      "bg-amber-300 text-[#14110A] shadow-[0_0_18px_rgba(252,211,77,0.18)] hover:bg-amber-200",
+    focusRing: "focus-visible:ring-amber-300",
+  },
+  patients: {
+    icon: HeartPulse,
+    cardSurface: "border-sky-300/20 bg-[#0F1619]",
+    hoverBorderShadow:
+      "hover:border-sky-300/55 hover:shadow-[0_16px_38px_rgba(56,189,248,0.12)]",
+    bottomFadeClass: "from-[#0F1619] via-[#0F1619]/35 to-transparent",
+    badgeStyle: "border-sky-300/45 bg-[#0C1519]/85 text-sky-200",
+    titleHover: "group-hover:text-sky-200",
+    highlightIconColor: "text-teal-300",
+    primaryButtonStyle:
+      "bg-sky-300 text-[#071318] shadow-[0_0_18px_rgba(56,189,248,0.18)] hover:bg-sky-200",
+    focusRing: "focus-visible:ring-sky-300",
+  },
+};
+
 export function FourAudienceChaptersSection({
   onNavigate,
   onSelectCategory,
   onLaunchProfileDashboard,
 }: FourAudienceChaptersSectionProps) {
+  const prefersReduced = useReducedMotion();
   const { user, profiles, openAuthModal } = useAuth();
-  const [activeCardId, setActiveCardId] = useState<AudienceChapterId | null>(null);
 
   function handleChapterPrimaryAction(chapter: AudienceChapterCard) {
     if (!user) {
@@ -71,9 +140,9 @@ export function FourAudienceChaptersSection({
               Nutrition Designed for Every Stage of Life
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-[#A1A1AA] sm:text-base">
-              Hover or tap any chapter to preview dedicated workflows for Men, Women,
-              Babies, and Patients — read open guides anytime or sign in for private,
-              multi-profile tracking.
+              Dedicated workflows for Men&apos;s Health, Women&apos;s Wellness, Babies
+              &amp; Children&apos;s Nutrition, and Patient Nutrition — read open guides
+              anytime or sign in for private, multi-profile tracking.
             </p>
           </div>
 
@@ -81,7 +150,7 @@ export function FourAudienceChaptersSection({
             <button
               type="button"
               onClick={() => onNavigate("dashboard")}
-              className="inline-flex items-center gap-2 rounded-full border border-[#34D399]/35 bg-[#34D399]/10 px-4 py-2.5 text-xs font-semibold text-[#34D399] transition hover:bg-[#34D399]/20"
+              className="inline-flex items-center gap-2 rounded-full border border-[#34D399]/35 bg-[#34D399]/10 px-4 py-2.5 text-xs font-semibold text-[#34D399] transition hover:bg-[#34D399]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#34D399]"
             >
               <LayoutDashboard className="h-4 w-4" />
               <span>
@@ -93,7 +162,7 @@ export function FourAudienceChaptersSection({
             <button
               type="button"
               onClick={() => openAuthModal("login", null)}
-              className="inline-flex items-center gap-2 rounded-full border border-[#A3FF12]/40 bg-[#A3FF12]/10 px-4 py-2.5 text-xs font-semibold text-[#A3FF12] transition hover:bg-[#A3FF12]/20"
+              className="inline-flex items-center gap-2 rounded-full border border-[#A3FF12]/40 bg-[#A3FF12]/10 px-4 py-2.5 text-xs font-semibold text-[#A3FF12] transition hover:bg-[#A3FF12]/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A3FF12]"
             >
               <Lock className="h-3.5 w-3.5" />
               <span>Sign In to Track Personal Profiles</span>
@@ -101,9 +170,10 @@ export function FourAudienceChaptersSection({
           )}
         </div>
 
-        <div className="relative z-10 mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="relative z-10 mt-8 grid items-stretch gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {FOUR_AUDIENCE_CHAPTERS.map((chapter, idx) => {
-            const isPreviewOpen = activeCardId === chapter.id;
+            const theme = CHAPTER_CARD_THEMES[chapter.id];
+            const ChapterIcon = theme.icon;
             const hasMatchingProfile = Boolean(
               user &&
                 profiles.some(
@@ -117,143 +187,123 @@ export function FourAudienceChaptersSection({
             return (
               <motion.article
                 key={chapter.id}
-                initial={{ opacity: 0, y: 18 }}
+                initial={prefersReduced ? false : { opacity: 0, y: 18 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.2 }}
-                transition={{ duration: 0.45, delay: idx * 0.06, ease: EASE_PREMIUM }}
-                onMouseEnter={() => setActiveCardId(chapter.id)}
-                onMouseLeave={() =>
-                  setActiveCardId((prev) => (prev === chapter.id ? null : prev))
-                }
-                onClick={() =>
-                  setActiveCardId((prev) => (prev === chapter.id ? null : chapter.id))
-                }
-                className="group relative aspect-[3/4] cursor-pointer overflow-hidden rounded-3xl border border-white/[0.1] bg-[#121713] shadow-[0_18px_50px_rgba(0,0,0,0.55)] transition-colors duration-300 hover:border-[#A3FF12]/45 focus-within:border-[#A3FF12]/50"
+                viewport={{ once: true, amount: 0.15 }}
+                transition={{
+                  duration: 0.4,
+                  delay: prefersReduced ? 0 : idx * 0.05,
+                  ease: EASE_PREMIUM,
+                }}
+                className={`group flex h-full flex-col overflow-hidden rounded-3xl border shadow-[0_14px_38px_rgba(0,0,0,0.45)] transition-all duration-300 ease-out hover:-translate-y-1 focus-within:ring-2 focus-within:ring-white/25 ${theme.cardSurface} ${theme.hoverBorderShadow}`}
               >
-                {/* Chapter Cover Photograph */}
-                <img
-                  src={chapter.imagePath}
-                  alt={chapter.imageAlt}
-                  loading="lazy"
-                  className={`h-full w-full ${chapter.imageFocusClass} transition duration-500 ease-out ${
-                    isPreviewOpen
-                      ? "scale-105 blur-[3px] brightness-75"
-                      : "group-hover:scale-105 group-hover:blur-[3px] group-hover:brightness-75"
-                  }`}
-                />
+                {/* Clean, Full-Brightness Cover Media Window (No hover blur/dark veil) */}
+                <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden">
+                  <img
+                    src={chapter.imagePath}
+                    alt={chapter.imageAlt}
+                    loading="lazy"
+                    className={`h-full w-full ${chapter.imageFocusClass} transition-transform duration-300 ease-out group-hover:scale-[1.03]`}
+                  />
 
-                {/* Persistent Cinematic Dark Gradient */}
-                <div
-                  aria-hidden="true"
-                  className={`pointer-events-none absolute inset-0 transition-opacity duration-300 ${
-                    isPreviewOpen
-                      ? "bg-gradient-to-t from-[#050706] via-[#050706]/85 to-[#050706]/45"
-                      : "bg-gradient-to-t from-[#050706]/95 via-[#050706]/35 to-black/25 group-hover:from-[#050706] group-hover:via-[#050706]/85"
-                  }`}
-                />
+                  {/* Minimal Bottom Seam Fade into Card Body Only */}
+                  <div
+                    aria-hidden="true"
+                    className={`pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t ${theme.bottomFadeClass}`}
+                  />
 
-                {/* Top Meta Row */}
-                <div className="absolute inset-x-4 top-4 z-10 flex items-center justify-between gap-2">
-                  <span className="rounded-full border border-white/15 bg-black/55 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-zinc-200 backdrop-blur-md">
-                    {chapter.chapterNumber}
-                  </span>
-                  <span
-                    className="rounded-full border px-2.5 py-1 text-[10px] font-semibold backdrop-blur-md"
-                    style={{
-                      borderColor: `${chapter.accentColor}55`,
-                      backgroundColor: "rgba(5, 7, 6, 0.72)",
-                      color: chapter.accentColor,
-                    }}
-                  >
-                    {chapter.badgeText}
-                  </span>
+                  {/* Top Corner Meta Pills */}
+                  <div className="pointer-events-none absolute inset-x-3 top-3 flex items-center justify-between gap-2">
+                    <span className="rounded-full border border-white/15 bg-[#050706]/80 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-wider text-zinc-100 backdrop-blur-md">
+                      {chapter.chapterNumber}
+                    </span>
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[10px] font-semibold backdrop-blur-md ${theme.badgeStyle}`}
+                    >
+                      <ChapterIcon className="h-3 w-3 shrink-0" />
+                      <span>{chapter.badgeText}</span>
+                    </span>
+                  </div>
                 </div>
 
-                {/* Bottom Resting Headline + Smooth Hover/Tap Interactive Reveal */}
-                <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col justify-end p-5">
-                  <div className="transition-transform duration-300 ease-out">
-                    <h3 className="font-display text-2xl font-extrabold tracking-tight text-white">
-                      {chapter.title}
-                    </h3>
-                    <p className="mt-1 text-xs font-medium text-zinc-300">
-                      {chapter.tagline}
-                    </p>
-                  </div>
+                {/* Always-Visible Structured Content Body */}
+                <div className="flex flex-1 flex-col justify-between p-5">
+                  <div className="space-y-3">
+                    <div>
+                      <h3
+                        className={`font-display text-xl font-extrabold leading-snug tracking-tight text-white transition-colors duration-300 ${theme.titleHover}`}
+                      >
+                        {chapter.title}
+                      </h3>
+                      <p className="mt-1 text-xs font-medium leading-snug text-zinc-300">
+                        {chapter.tagline}
+                      </p>
+                    </div>
 
-                  {/* Expanded Overlay Content (visible cleanly on hover or mobile tap) */}
-                  <div
-                    className={`overflow-hidden transition-all duration-300 ease-out ${
-                      isPreviewOpen
-                        ? "mt-3 max-h-[320px] opacity-100"
-                        : "max-h-0 opacity-0 group-hover:mt-3 group-hover:max-h-[320px] group-hover:opacity-100"
-                    }`}
-                  >
-                    <p className="text-xs leading-relaxed text-zinc-200">
+                    <p className="text-xs leading-relaxed text-[#A1A1AA]">
                       {chapter.intro}
                     </p>
 
-                    <ul className="mt-2.5 space-y-1 text-[11px] text-zinc-300">
+                    <ul className="space-y-1.5 text-[11px] leading-snug text-zinc-300">
                       {chapter.highlights.map((item) => (
-                        <li key={item} className="flex items-start gap-1.5">
+                        <li key={item} className="flex items-start gap-2">
                           <ShieldCheck
-                            className="mt-0.5 h-3.5 w-3.5 shrink-0"
-                            style={{ color: chapter.accentColor }}
+                            className={`mt-0.5 h-3.5 w-3.5 shrink-0 ${theme.highlightIconColor}`}
                           />
                           <span>{item}</span>
                         </li>
                       ))}
                     </ul>
+                  </div>
 
-                    <p className="mt-2.5 rounded-xl border border-white/10 bg-black/55 px-2.5 py-1.5 text-[10px] leading-snug text-zinc-400">
+                  <div className="mt-4 space-y-2.5 border-t border-white/[0.08] pt-3.5">
+                    <p className="rounded-xl border border-white/[0.08] bg-black/35 px-3 py-2 text-[11px] leading-relaxed text-zinc-400">
                       {chapter.safetyNote}
                     </p>
 
-                    <div
-                      className="mt-3 flex flex-col gap-2"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <div className="flex flex-col gap-2">
                       {chapter.id === "women" && (
                         <button
                           type="button"
                           onClick={() => onNavigate("womens-wellness")}
-                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-rose-300 px-3.5 py-2.5 text-xs font-bold text-[#140B10] shadow-[0_0_20px_rgba(253,164,175,0.28)] transition hover:bg-rose-200"
+                          className={`group/btn inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-rose-300 px-3.5 py-2.5 text-xs font-bold text-[#140B10] shadow-[0_0_20px_rgba(253,164,175,0.22)] transition-all duration-300 ease-out hover:bg-rose-200 focus-visible:outline-none focus-visible:ring-2 ${theme.focusRing}`}
                         >
-                          <Flower2 className="h-3.5 w-3.5" />
-                          <span>Explore Women&apos;s Wellness</span>
-                          <ArrowRight className="h-3.5 w-3.5" />
+                          <Flower2 className="h-3.5 w-3.5 shrink-0" />
+                          <span>Open Women Wellness &amp; Period Garden</span>
+                          <ArrowRight className="h-3.5 w-3.5 shrink-0 transition-transform duration-300 group-hover/btn:translate-x-0.5" />
                         </button>
                       )}
 
                       <button
                         type="button"
                         onClick={() => handleChapterPrimaryAction(chapter)}
-                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#A3FF12] px-3.5 py-2.5 text-xs font-bold text-[#050706] shadow-[0_0_20px_rgba(163,255,18,0.25)] transition hover:bg-[#b8ff42]"
+                        className={`group/btn inline-flex w-full items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-xs font-bold transition-all duration-300 ease-out focus-visible:outline-none focus-visible:ring-2 ${theme.primaryButtonStyle} ${theme.focusRing}`}
                       >
                         {!user ? (
                           <>
-                            <UserPlus className="h-3.5 w-3.5" />
+                            <UserPlus className="h-3.5 w-3.5 shrink-0" />
                             <span>Login / Get Started</span>
                           </>
                         ) : hasMatchingProfile ? (
                           <>
-                            <LayoutDashboard className="h-3.5 w-3.5" />
+                            <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
                             <span>Open {chapter.title} Dashboard</span>
                           </>
                         ) : (
                           <>
-                            <UserPlus className="h-3.5 w-3.5" />
+                            <UserPlus className="h-3.5 w-3.5 shrink-0" />
                             <span>Create {chapter.title} Profile</span>
                           </>
                         )}
-                        <ArrowRight className="h-3.5 w-3.5" />
+                        <ArrowRight className="h-3.5 w-3.5 shrink-0 transition-transform duration-300 group-hover/btn:translate-x-0.5" />
                       </button>
 
                       <button
                         type="button"
                         onClick={() => handleReadGuide(chapter)}
-                        className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/20 bg-black/65 px-3 py-2 text-[11px] font-semibold text-zinc-200 backdrop-blur-md transition hover:border-white/40 hover:text-white"
+                        className={`group/btn inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-black/45 px-3 py-2 text-[11px] font-semibold text-zinc-200 transition-all duration-300 ease-out hover:border-white/35 hover:text-white focus-visible:outline-none focus-visible:ring-2 ${theme.focusRing}`}
                       >
-                        <BookOpen className="h-3.5 w-3.5 text-[#34D399]" />
+                        <BookOpen className={`h-3.5 w-3.5 shrink-0 ${theme.highlightIconColor}`} />
                         <span>Read Open Nutrition Guide</span>
                       </button>
                     </div>

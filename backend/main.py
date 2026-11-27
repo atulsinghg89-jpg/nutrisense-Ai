@@ -164,7 +164,7 @@ class ScannedFoodItem(FoodItemMacros):
     fibre: float = Field(default=0.0, ge=0)
     sugar: float = Field(default=0.0, ge=0)
     sodium_mg: float = Field(default=0.0, ge=0)
-    source_type: Literal["icmr_nin", "usda_fdc", "unmatched"] = "icmr_nin"
+    source_type: Literal["icmr_nin", "usda_fdc", "japan_mext", "unmatched"] = "icmr_nin"
     source_label: str = "ICMR–NIN / USDA Reference"
     confident: bool = True
     needs_confirmation: bool = False
@@ -187,7 +187,7 @@ class AnalyzedIngredient(BaseModel):
     needs_confirmation: bool = False
     confirmed_by_user: bool = False
     uncertainty_reason: str | None = None
-    source_type: Literal["icmr_nin", "usda_fdc", "unmatched"]
+    source_type: Literal["icmr_nin", "usda_fdc", "japan_mext", "unmatched"]
     source_label: str
     calories: float = Field(..., ge=0)
     protein: float = Field(..., ge=0)
@@ -308,7 +308,7 @@ class RecalculateItemInput(BaseModel):
     protein: float | None = Field(default=None, ge=0)
     carbs: float | None = Field(default=None, ge=0)
     fats: float | None = Field(default=None, ge=0)
-    source_type: Literal["icmr_nin", "usda_fdc", "unmatched"] = "icmr_nin"
+    source_type: Literal["icmr_nin", "usda_fdc", "japan_mext", "unmatched"] = "icmr_nin"
     source_label: str = "ICMR–NIN / USDA Reference"
     confident: bool = True
     needs_confirmation: bool = False
@@ -692,6 +692,7 @@ import nutrition_db
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
+from global_nutrition import register_global_nutrition
 from persistence_layer import ensure_audit_schema_upgrades, register_persistence_layer
 from user_platform import register_user_platform
 from wellness_catalog import register_wellness_and_catalog
@@ -774,6 +775,7 @@ _platform_ctx["add_account_cleanup_hook"](
     _persistence_ctx["delete_user_upload_files_on_disk"]
 )
 register_wellness_and_catalog(app, Base, get_db, _platform_ctx, SessionLocal)
+register_global_nutrition(app, Base, get_db, _platform_ctx, SessionLocal)
 
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
@@ -842,6 +844,8 @@ def _build_hybrid_scan_response(
                 reason = "Hidden or variable culinary quantity; confirm estimated grams."
             if db_match.source_type == "icmr_nin":
                 src_credit = "ICMR–NIN Indian Food Composition Tables (IFCT 2017)"
+            elif db_match.source_type == "japan_mext":
+                src_credit = "MEXT Standard Tables of Food Composition in Japan (8th Rev.)"
             else:
                 src_credit = "USDA FoodData Central (CC0 1.0)"
             if src_credit not in used_sources:

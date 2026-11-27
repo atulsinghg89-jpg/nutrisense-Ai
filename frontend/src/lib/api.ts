@@ -37,6 +37,17 @@ import type {
   WomensPreferences,
   WomensPreferencesUpdate,
   WomensSummaryData,
+  BentoPlanResponse,
+  FoodBalanceGuideResponse,
+  FoodEducationProgressEntry,
+  FoodEducationTopic,
+  GlobalComparePreset,
+  GlobalComparisonResponse,
+  GlobalCountryInfo,
+  GlobalDashboardSummary,
+  GlobalFoodItem,
+  SeasonalFoodRecord,
+  TraditionalJapaneseMeal,
 } from "../types/nutrition";
 
 const runtimeHost =
@@ -942,4 +953,190 @@ export function saveWorkspaceState(payload: {
     method: "PUT",
     body: JSON.stringify(payload),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Global & Japan-Inspired Nutrition Intelligence APIs
+// ---------------------------------------------------------------------------
+
+export async function fetchGlobalCountries(): Promise<{
+  countries: GlobalCountryInfo[];
+  compare_presets: GlobalComparePreset[];
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/global/countries`);
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json();
+}
+
+export async function fetchGlobalFoods(params?: {
+  country?: string;
+  category?: string;
+  q?: string;
+  vegetarian_only?: boolean;
+}): Promise<GlobalFoodItem[]> {
+  const qs = new URLSearchParams();
+  if (params?.country) qs.set("country", params.country);
+  if (params?.category) qs.set("category", params.category);
+  if (params?.q) qs.set("q", params.q);
+  if (params?.vegetarian_only) qs.set("vegetarian_only", "true");
+  const query = qs.toString() ? `?${qs.toString()}` : "";
+  const response = await fetch(`${API_BASE_URL}/api/global/foods${query}`);
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json() as Promise<GlobalFoodItem[]>;
+}
+
+export async function fetchGlobalFoodDetail(
+  foodRef: string | number,
+): Promise<GlobalFoodItem> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/global/foods/${encodeURIComponent(String(foodRef))}`,
+  );
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json() as Promise<GlobalFoodItem>;
+}
+
+export async function compareGlobalFoods(payload: {
+  left_food_slug: string;
+  right_food_slug: string;
+  left_grams?: number;
+  right_grams?: number;
+  diet_preference?: string;
+  allergies?: string[];
+  profile_id?: number | null;
+  save_comparison?: boolean;
+}): Promise<GlobalComparisonResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/global/compare`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json() as Promise<GlobalComparisonResponse>;
+}
+
+export async function fetchFoodBalanceGuide(
+  profileId?: number | null,
+): Promise<FoodBalanceGuideResponse> {
+  const qs = profileId ? `?profile_id=${profileId}` : "";
+  const response = await fetch(
+    `${API_BASE_URL}/api/global/food-balance-guide${qs}`,
+    { credentials: "include" },
+  );
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json() as Promise<FoodBalanceGuideResponse>;
+}
+
+export async function fetchGlobalEducation(): Promise<{
+  module_title: string;
+  inspiration: string;
+  topics: FoodEducationTopic[];
+}> {
+  const response = await fetch(`${API_BASE_URL}/api/global/education`);
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json();
+}
+
+export function fetchEducationProgress(
+  profileId: number,
+): Promise<FoodEducationProgressEntry[]> {
+  return authedJsonFetch<FoodEducationProgressEntry[]>(
+    `/api/global/education/progress?profile_id=${profileId}`,
+  );
+}
+
+export function saveEducationProgress(payload: {
+  profile_id: number;
+  topic_slug: string;
+  completed?: boolean;
+  quiz_score: number;
+  quiz_total: number;
+  notes?: string | null;
+}): Promise<FoodEducationProgressEntry> {
+  return authedJsonFetch<FoodEducationProgressEntry>(
+    "/api/global/education/progress",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function generateBentoPlan(payload: {
+  profile_id?: number | null;
+  meal_category: string;
+  calorie_target: number;
+  protein_target: number;
+  diet_preference: "any" | "vegetarian";
+  allergies?: string[];
+  exclusions?: string[];
+  budget?: "low_budget" | "balanced" | "flexible";
+  ingredient_overrides?: Record<string, string>;
+  save_plan?: boolean;
+}): Promise<BentoPlanResponse> {
+  const response = await fetch(`${API_BASE_URL}/api/global/bento/generate`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json() as Promise<BentoPlanResponse>;
+}
+
+export async function fetchSeasonalFoods(params?: {
+  country?: string;
+  season?: string;
+  vegetarian_only?: boolean;
+}): Promise<SeasonalFoodRecord[]> {
+  const qs = new URLSearchParams();
+  if (params?.country) qs.set("country", params.country);
+  if (params?.season) qs.set("season", params.season);
+  if (params?.vegetarian_only) qs.set("vegetarian_only", "true");
+  const query = qs.toString() ? `?${qs.toString()}` : "";
+  const response = await fetch(
+    `${API_BASE_URL}/api/global/seasonal-foods${query}`,
+  );
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json() as Promise<SeasonalFoodRecord[]>;
+}
+
+export async function fetchTraditionalJapaneseMeals(params?: {
+  category?: string;
+  vegetarian_only?: boolean;
+}): Promise<TraditionalJapaneseMeal[]> {
+  const qs = new URLSearchParams();
+  if (params?.category) qs.set("category", params.category);
+  if (params?.vegetarian_only) qs.set("vegetarian_only", "true");
+  const query = qs.toString() ? `?${qs.toString()}` : "";
+  const response = await fetch(`${API_BASE_URL}/api/global/meals${query}`);
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json() as Promise<TraditionalJapaneseMeal[]>;
+}
+
+export function fetchGlobalDashboardSummary(
+  profileId: number,
+  days: number = 7,
+): Promise<GlobalDashboardSummary> {
+  return authedJsonFetch<GlobalDashboardSummary>(
+    `/api/global/dashboard-summary?profile_id=${profileId}&days=${days}`,
+  );
 }

@@ -9,10 +9,12 @@ import {
 import {
   Activity,
   ArrowRight,
+  Baby,
   Bot,
   CalendarDays,
   Camera,
   Flame,
+  Globe2,
   HeartPulse,
   IndianRupee,
   LayoutDashboard,
@@ -22,6 +24,7 @@ import {
   SlidersHorizontal,
   Sparkles,
   TrendingDown,
+  User,
   Utensils,
   X,
 } from "lucide-react";
@@ -820,7 +823,27 @@ export function HomeView({
             </p>
           </div>
 
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => onNavigate("global-nutrition")}
+              className="group rounded-2xl border border-[#A3FF12]/35 bg-gradient-to-br from-[#141D16] to-[#121212] p-5 text-left transition hover:border-[#A3FF12] hover:bg-[#171717]"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#A3FF12]/45 bg-[#A3FF12]/15 text-[#A3FF12]">
+                <Globe2 className="h-5 w-5" />
+              </div>
+              <h3 className="mt-4 font-display text-base font-bold text-white group-hover:text-[#A3FF12]">
+                Global &amp; Japanese Nutrition
+              </h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-[#A1A1AA]">
+                Food Balance Spinning Guide, Japan MEXT composition tables, India vs Japan
+                comparisons, Bento planner &amp; seasonal foods.
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#A3FF12]">
+                Explore Global Module <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={onOpenAssistant}
@@ -920,6 +943,107 @@ export function HomeView({
                 Open Checklist <ArrowRight className="h-3.5 w-3.5" />
               </span>
             </button>
+          </div>
+        </section>
+      </RevealSection>
+
+      {/* Compact Explore Nutrition Guides Strip (Men's Health, Babies & Children, Patient Education) */}
+      <RevealSection>
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-[#34D399]">
+                Educational Modules
+              </p>
+              <h2 className="mt-1 font-display text-2xl font-bold tracking-tight text-white">
+                Explore Nutrition Guides
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => onNavigate("categories")}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#A1A1AA] transition hover:text-[#A3FF12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A3FF12]"
+            >
+              <span>View All Guides</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <a
+              href="#men"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate("men");
+              }}
+              className="group flex items-start gap-3.5 rounded-2xl border border-white/10 bg-[#101411] p-4 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[#A3FF12]/45 hover:shadow-[0_10px_28px_rgba(163,255,18,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#A3FF12]"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#A3FF12]/30 bg-[#A3FF12]/10 text-[#A3FF12]">
+                <User className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-display text-sm font-bold text-white transition-colors group-hover:text-[#A3FF12]">
+                  Men&apos;s Health
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-[#A1A1AA]">
+                  Everyday protein balance, heart habits &amp; smart home swaps.
+                </p>
+                <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-[#A3FF12]">
+                  <span>Open Guide</span>
+                  <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5" />
+                </span>
+              </div>
+            </a>
+
+            <a
+              href="#baby"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate("baby");
+              }}
+              className="group flex items-start gap-3.5 rounded-2xl border border-amber-200/15 bg-[#15140E] p-4 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-amber-200/45 hover:shadow-[0_10px_28px_rgba(252,211,77,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-200/30 bg-amber-200/10 text-amber-200">
+                <Baby className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-display text-sm font-bold text-white transition-colors group-hover:text-amber-200">
+                  Babies &amp; Children&apos;s Nutrition
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-[#A1A1AA]">
+                  Broad age-stage cues from infancy through growing childhood.
+                </p>
+                <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-200">
+                  <span>Open Guide</span>
+                  <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5" />
+                </span>
+              </div>
+            </a>
+
+            <a
+              href="#patient"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate("patient");
+              }}
+              className="group flex items-start gap-3.5 rounded-2xl border border-sky-300/15 bg-[#0F1619] p-4 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-sky-300/45 hover:shadow-[0_10px_28px_rgba(56,189,248,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-sky-300/30 bg-sky-300/10 text-sky-300">
+                <HeartPulse className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-display text-sm font-bold text-white transition-colors group-hover:text-sky-200">
+                  Patient Nutrition Education
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-[#A1A1AA]">
+                  Condition food literacy &amp; doctor/dietitian visit questions.
+                </p>
+                <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-semibold text-sky-300">
+                  <span>Open Guide</span>
+                  <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5" />
+                </span>
+              </div>
+            </a>
           </div>
         </section>
       </RevealSection>
@@ -1295,6 +1419,15 @@ export function HomeView({
                       className="text-left transition-colors duration-200 hover:text-[#A3FF12]"
                     >
                       Indian Food Intelligence
+                    </button>
+                  </li>
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => onNavigate("global-nutrition")}
+                      className="text-left transition-colors duration-200 hover:text-[#A3FF12]"
+                    >
+                      Global Nutrition Intelligence
                     </button>
                   </li>
                   <li>
