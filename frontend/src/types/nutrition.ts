@@ -533,10 +533,14 @@ export interface WomensPreferences {
   reminder_days_before: number | null;
   typical_cycle_length: number;
   typical_period_days: number;
+  age_band: string | null;
   height_cm: number | null;
   weight_kg: number | null;
   bmi_consent_given: boolean;
+  dietary_preferences: string[];
+  activity_preferences: string[];
   optional_goals: string[];
+  created_at?: string;
   updated_at: string;
 }
 
@@ -548,11 +552,45 @@ export interface WomensPreferencesUpdate {
   reminder_days_before?: number | null;
   typical_cycle_length?: number;
   typical_period_days?: number;
+  age_band?: string | null;
   height_cm?: number | null;
   weight_kg?: number | null;
   bmi_consent_given?: boolean;
   clear_bmi_metrics?: boolean;
+  dietary_preferences?: string[];
+  activity_preferences?: string[];
   optional_goals?: string[];
+}
+
+export type ConsentType =
+  | "wellness_profile"
+  | "period_tracking"
+  | "bmi_screening"
+  | "reminders";
+
+export interface ConsentEvent {
+  id: number;
+  profile_id: number;
+  consent_type: ConsentType | string;
+  consent_status: "granted" | "withdrawn" | string;
+  consent_version: string;
+  consented_at: string;
+  withdrawn_at: string | null;
+}
+
+export interface BmiHistoryEntry {
+  id: number;
+  profile_id: number;
+  bmi_value: number;
+  assessment_mode: string;
+  percentile: number | null;
+  height_cm_used: number;
+  weight_kg_used: number;
+  age_years_used: number | null;
+  consent_confirmed: boolean;
+  headline: string;
+  context_note: string;
+  calculated_at: string;
 }
 
 export type FlowLevel = "spotting" | "light" | "moderate" | "heavy" | "skipped";
@@ -565,13 +603,18 @@ export interface PeriodRecord {
   flow_level: FlowLevel | null;
   notes: string | null;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface SymptomMoodRecord {
   id: number;
   profile_id: number;
+  period_record_id?: number | null;
   record_date: string;
   symptoms: string[];
+  symptom_severity?: "mild" | "moderate" | "severe" | null;
+  cramps_level?: "none" | "mild" | "moderate" | "severe" | null;
+  energy_level?: "low" | "moderate" | "steady" | null;
   symptom_other_text: string | null;
   mood: string | null;
   mood_other_text: string | null;
@@ -590,6 +633,8 @@ export interface WomensSummaryData {
   preferences: WomensPreferences;
   period_records: PeriodRecord[];
   symptom_records: SymptomMoodRecord[];
+  consents: ConsentEvent[];
+  bmi_history: BmiHistoryEntry[];
   estimate: CycleEstimate;
 }
 
@@ -616,10 +661,12 @@ export interface RetailerListing {
   is_affiliate: boolean;
   link_type: string;
   price_inr: number | null;
+  original_price_inr?: number | null;
   price_display: string;
   live_price_verified: boolean;
   availability: string;
   last_checked_at: string;
+  source_provenance?: string | null;
   disclosure_text: string;
   is_sponsored: boolean;
 }
@@ -628,15 +675,34 @@ export interface ProductCatalogEntry {
   id: number;
   slug: string;
   name: string;
+  variant_label?: string | null;
   brand: string;
   category: ProductCategoryId;
+  sub_category?: string | null;
   audience_tags: string[];
   budget_tier: ProductBudgetTier;
   image_path: string;
+  has_verified_image?: boolean;
   image_caption: string;
   features: string[];
   quality_notes: string;
   listings: RetailerListing[];
+}
+
+export interface ProductRedirectInfo {
+  listing_id: number;
+  destination_url: string;
+  is_affiliate: boolean;
+  link_type: string;
+  disclosure_text: string;
+  commission_status: string;
+  attribution_token: string;
+}
+
+export interface ServicePreviewEntry {
+  id: string;
+  title: string;
+  status: string;
 }
 
 export interface HealthcareProviderEntry {

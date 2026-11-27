@@ -44,6 +44,20 @@ def ensure_audit_schema_upgrades(engine: Any) -> None:
         "ALTER TABLE profile_food_entries ADD COLUMN IF NOT EXISTS confirmed_by_user BOOLEAN NOT NULL DEFAULT TRUE",
         "ALTER TABLE profile_food_entries ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ",
         "ALTER TABLE profile_food_entries ADD COLUMN IF NOT EXISTS nutrition_sources_json TEXT NOT NULL DEFAULT '[]'",
+        "ALTER TABLE womens_wellness_preferences ADD COLUMN IF NOT EXISTS age_band VARCHAR(32)",
+        "ALTER TABLE womens_wellness_preferences ADD COLUMN IF NOT EXISTS dietary_preferences_json TEXT NOT NULL DEFAULT '[]'",
+        "ALTER TABLE womens_wellness_preferences ADD COLUMN IF NOT EXISTS activity_preferences_json TEXT NOT NULL DEFAULT '[]'",
+        "ALTER TABLE womens_wellness_preferences ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+        "ALTER TABLE menstrual_period_records ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()",
+        "ALTER TABLE cycle_symptom_mood_records ADD COLUMN IF NOT EXISTS period_record_id INTEGER",
+        "ALTER TABLE cycle_symptom_mood_records ADD COLUMN IF NOT EXISTS symptom_severity VARCHAR(32)",
+        "ALTER TABLE cycle_symptom_mood_records ADD COLUMN IF NOT EXISTS cramps_level VARCHAR(32)",
+        "ALTER TABLE cycle_symptom_mood_records ADD COLUMN IF NOT EXISTS energy_level VARCHAR(32)",
+        "ALTER TABLE product_catalog_items ADD COLUMN IF NOT EXISTS variant_label VARCHAR(160)",
+        "ALTER TABLE product_catalog_items ADD COLUMN IF NOT EXISTS sub_category VARCHAR(64)",
+        "ALTER TABLE product_catalog_items ADD COLUMN IF NOT EXISTS has_verified_image BOOLEAN NOT NULL DEFAULT FALSE",
+        "ALTER TABLE product_retailer_listings ADD COLUMN IF NOT EXISTS original_price_inr FLOAT",
+        "ALTER TABLE product_retailer_listings ADD COLUMN IF NOT EXISTS source_provenance VARCHAR(180)",
     ]
     with engine.begin() as conn:
         for stmt in ddl_statements:

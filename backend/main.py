@@ -727,6 +727,8 @@ DEFAULT_CORS_ORIGINS = [
     "http://127.0.0.1:5173",
     "http://localhost:5174",
     "http://127.0.0.1:5174",
+    "http://localhost:5175",
+    "http://127.0.0.1:5175",
     "http://localhost:4173",
     "http://127.0.0.1:4173",
 ]
@@ -744,6 +746,25 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def csrf_origin_protection(request: Request, call_next: Any):
+    """Verify Origin/Referer against allowlist when cookie auth performs state-changing requests."""
+    if request.method in {"POST", "PUT", "PATCH", "DELETE"} and request.cookies.get("nutrisense_session"):
+        origin = (request.headers.get("origin") or "").strip().rstrip("/")
+        referer = (request.headers.get("referer") or "").strip()
+        candidate_origin = origin
+        if not candidate_origin and referer and "://" in referer:
+            parts = referer.split("/", 3)
+            if len(parts) >= 3:
+                candidate_origin = f"{parts[0]}//{parts[2]}".rstrip("/")
+        if candidate_origin and candidate_origin not in cors_origins:
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"detail": "CSRF origin validation failed for authenticated session request."},
+            )
+    return await call_next(request)
 
 _platform_ctx = register_user_platform(app, Base, get_db)
 _persistence_ctx = register_persistence_layer(

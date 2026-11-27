@@ -6,6 +6,9 @@ import type {
   ActivityEntryCreate,
   AnalyzedIngredient,
   AuthSessionPayload,
+  BmiHistoryEntry,
+  ConsentEvent,
+  ConsentType,
   DashboardFoodEntry,
   DashboardFoodsResponse,
   DashboardSummary,
@@ -15,9 +18,11 @@ import type {
   MacroTotals,
   MealLogCreate,
   MealLogResponse,
+  ProductRedirectInfo,
   ProfileDashboardData,
   RecalculateResponse,
   ScanResponse,
+  ServicePreviewEntry,
   TrackedFoodEntry,
   TrackedFoodEntryCreate,
   DiagnosticLabEntry,
@@ -684,6 +689,57 @@ export function updateWomensPreferences(
   });
 }
 
+export function fetchWomensConsents(profileId: number): Promise<ConsentEvent[]> {
+  return authedJsonFetch<ConsentEvent[]>(
+    `/api/women/consents?profile_id=${profileId}`,
+  );
+}
+
+export function recordWomensConsent(payload: {
+  profile_id: number;
+  consent_type: ConsentType;
+  consent_status?: "granted" | "withdrawn";
+  consent_version?: string;
+}): Promise<ConsentEvent> {
+  return authedJsonFetch<ConsentEvent>("/api/women/consents", {
+    method: "POST",
+    body: JSON.stringify({
+      consent_status: "granted",
+      consent_version: "v1.0",
+      ...payload,
+    }),
+  });
+}
+
+export function withdrawWomensConsent(
+  consentId: number,
+): Promise<{ withdrawn: boolean }> {
+  return authedJsonFetch<{ withdrawn: boolean }>(
+    `/api/women/consents/${consentId}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function calculateAndSaveBmiEstimate(payload: {
+  profile_id: number;
+  height_cm: number;
+  weight_kg: number;
+  consent_confirmed: boolean;
+}): Promise<BmiHistoryEntry> {
+  return authedJsonFetch<BmiHistoryEntry>("/api/women/bmi/estimate", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function fetchBmiHistory(profileId: number): Promise<BmiHistoryEntry[]> {
+  return authedJsonFetch<BmiHistoryEntry[]>(
+    `/api/women/bmi/history?profile_id=${profileId}`,
+  );
+}
+
 export function createPeriodRecord(payload: {
   profile_id: number;
   start_date: string;
@@ -691,8 +747,23 @@ export function createPeriodRecord(payload: {
   flow_level?: FlowLevel | null;
   notes?: string | null;
 }): Promise<PeriodRecord> {
-  return authedJsonFetch<PeriodRecord>("/api/women/periods", {
+  return authedJsonFetch<PeriodRecord>("/api/women/cycle", {
     method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updatePeriodRecord(
+  recordId: number,
+  payload: {
+    start_date?: string;
+    end_date?: string | null;
+    flow_level?: FlowLevel | null;
+    notes?: string | null;
+  },
+): Promise<PeriodRecord> {
+  return authedJsonFetch<PeriodRecord>(`/api/women/cycle/${recordId}`, {
+    method: "PUT",
     body: JSON.stringify(payload),
   });
 }
@@ -700,15 +771,19 @@ export function createPeriodRecord(payload: {
 export function deletePeriodRecord(
   recordId: number,
 ): Promise<{ deleted: boolean }> {
-  return authedJsonFetch<{ deleted: boolean }>(`/api/women/periods/${recordId}`, {
+  return authedJsonFetch<{ deleted: boolean }>(`/api/women/cycle/${recordId}`, {
     method: "DELETE",
   });
 }
 
 export function createSymptomMoodRecord(payload: {
   profile_id: number;
+  period_record_id?: number | null;
   record_date: string;
   symptoms: string[];
+  symptom_severity?: "mild" | "moderate" | "severe" | null;
+  cramps_level?: "none" | "mild" | "moderate" | "severe" | null;
+  energy_level?: "low" | "moderate" | "steady" | null;
   symptom_other_text?: string | null;
   mood?: string | null;
   mood_other_text?: string | null;
@@ -752,10 +827,12 @@ export function deleteAllWomensWellnessData(
 
 export async function fetchRecommendedProducts(params?: {
   category?: ProductCategoryId;
+  sub_category?: string;
   audience?: string;
 }): Promise<ProductCatalogEntry[]> {
   const qs = new URLSearchParams();
   if (params?.category) qs.set("category", params.category);
+  if (params?.sub_category) qs.set("sub_category", params.sub_category);
   if (params?.audience) qs.set("audience", params.audience);
   const query = qs.toString() ? `?${qs.toString()}` : "";
   const response = await fetch(`${API_BASE_URL}/api/products${query}`);
@@ -765,12 +842,37 @@ export async function fetchRecommendedProducts(params?: {
   return response.json() as Promise<ProductCatalogEntry[]>;
 }
 
+export async function recordProductAffiliateClick(
+  productId: number,
+  listingId: number,
+  referrerSection: string,
+): Promise<ProductRedirectInfo> {
+  const response = await fetch(
+    `${API_BASE_URL}/api/women/products/${productId}/affiliate-click`,
+    {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        listing_id: listingId,
+        referrer_section: referrerSection,
+      }),
+    },
+  );
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json() as Promise<ProductRedirectInfo>;
+}
+
 export async function fetchVerifiedProviders(
   providerType?: string,
+  verifiedOnly?: boolean,
 ): Promise<HealthcareProviderEntry[]> {
-  const query = providerType
-    ? `?provider_type=${encodeURIComponent(providerType)}`
-    : "";
+  const qs = new URLSearchParams();
+  if (providerType) qs.set("provider_type", providerType);
+  if (verifiedOnly) qs.set("verified_only", "true");
+  const query = qs.toString() ? `?${qs.toString()}` : "";
   const response = await fetch(`${API_BASE_URL}/api/directory/providers${query}`);
   if (!response.ok) {
     throw new ApiError(await parseErrorMessage(response), response.status);
@@ -794,6 +896,14 @@ export async function fetchSubscriptionPreviews(): Promise<
     throw new ApiError(await parseErrorMessage(response), response.status);
   }
   return response.json() as Promise<SubscriptionPlanPreview[]>;
+}
+
+export async function fetchPremiumServices(): Promise<ServicePreviewEntry[]> {
+  const response = await fetch(`${API_BASE_URL}/api/women/premium/services`);
+  if (!response.ok) {
+    throw new ApiError(await parseErrorMessage(response), response.status);
+  }
+  return response.json() as Promise<ServicePreviewEntry[]>;
 }
 
 export function saveAppointmentPreviewNote(payload: {
