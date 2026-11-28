@@ -485,6 +485,28 @@ export function NutriRunCanvas({
   );
 }
 
+function drawRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+) {
+  const rad = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rad, y);
+  ctx.lineTo(x + w - rad, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + rad);
+  ctx.lineTo(x + w, y + h - rad);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+  ctx.lineTo(x + rad, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - rad);
+  ctx.lineTo(x, y + rad);
+  ctx.quadraticCurveTo(x, y, x + rad, y);
+  ctx.closePath();
+}
+
 function drawPlayerAvatar(
   ctx: CanvasRenderingContext2D,
   x: number,
@@ -506,8 +528,7 @@ function drawPlayerAvatar(
 
   // Body capsule
   ctx.fillStyle = hasSolarSkin ? "#A3FF12" : "#34D399";
-  ctx.beginPath();
-  ctx.roundRect(x - 14, y - 10 + bob, 28, 30, 10);
+  drawRoundedRect(ctx, x - 14, y - 10 + bob, 28, 30, 10);
   ctx.fill();
 
   // Head
@@ -551,8 +572,7 @@ function drawPickup3Lane(
     ctx.fillStyle = "rgba(52, 211, 153, 0.25)";
     ctx.strokeStyle = "#34D399";
     ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.roundRect(-18, -28, 36, 28, 8);
+    drawRoundedRect(ctx, -18, -28, 36, 28, 8);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = "#ECFDF5";
@@ -563,8 +583,7 @@ function drawPickup3Lane(
     ctx.fillStyle = "rgba(244, 114, 182, 0.25)";
     ctx.strokeStyle = "#F472B6";
     ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.roundRect(-20, -30, 40, 30, 9);
+    drawRoundedRect(ctx, -20, -30, 40, 30, 9);
     ctx.fill();
     ctx.stroke();
     ctx.fillStyle = "#FDF2F8";

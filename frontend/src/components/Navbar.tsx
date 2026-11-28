@@ -154,6 +154,7 @@ export function Navbar({
   }
 
   const isHubActive =
+    activeView === "game" ||
     activeView === "global-nutrition" ||
     activeView === "recommended-products" ||
     activeView === "planner" ||
@@ -287,6 +288,20 @@ export function Navbar({
                 </button>
               );
             })}
+
+            {/* Always-Visible NutriSense Run Top Shortcut */}
+            <button
+              type="button"
+              onClick={() => handleSelectView("game")}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition xl:text-sm ${
+                activeView === "game"
+                  ? "bg-[#A3FF12] text-[#0A0A0A] shadow-[0_0_20px_rgba(163,255,18,0.3)]"
+                  : "border border-[#A3FF12]/35 bg-[#A3FF12]/10 text-[#A3FF12] hover:bg-[#A3FF12]/20"
+              }`}
+            >
+              <Gamepad2 className="h-3.5 w-3.5 xl:h-4 xl:w-4" />
+              <span className="whitespace-nowrap">Game</span>
+            </button>
 
             {/* Smart Nutrition Hub Dropdown */}
             <div ref={hubRef} className="relative">
@@ -450,6 +465,18 @@ export function Navbar({
               <Bot className="h-3.5 w-3.5" />
               <span className="hidden xl:inline">Nutri AI</span>
             </button>
+
+            {activeView !== "game" && (
+              <button
+                type="button"
+                onClick={() => handleSelectView("game")}
+                aria-label="Play NutriSense Run Game"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#A3FF12]/40 bg-[#A3FF12]/12 px-3 py-2 text-xs font-bold text-[#A3FF12] transition hover:bg-[#A3FF12]/22 lg:hidden"
+              >
+                <Gamepad2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Game</span>
+              </button>
+            )}
 
             {activeView !== "scanner" && (
               <motion.button

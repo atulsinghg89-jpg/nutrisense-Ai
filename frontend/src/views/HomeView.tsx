@@ -294,6 +294,14 @@ export function HomeView({
                 <span>Scan Your Food</span>
               </MagneticButton>
 
+              <MagneticButton
+                onClick={() => onNavigate("game")}
+                className="inline-flex items-center gap-2 rounded-full border border-[#A3FF12]/50 bg-[#141E16] px-5 py-3.5 text-sm font-bold text-[#A3FF12] shadow-[0_0_24px_rgba(163,255,18,0.16)] transition hover:border-[#A3FF12] hover:bg-[#19261C]"
+              >
+                <Gamepad2 className="h-4 w-4" />
+                <span>Play NutriSense Run</span>
+              </MagneticButton>
+
               <button
                 type="button"
                 onClick={onOpenOnboarding}
@@ -347,6 +355,31 @@ export function HomeView({
                 </p>
               </div>
             </motion.div>
+
+            {/* Front-Page Highlight Card for NutriSense Run Game */}
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#A3FF12]/35 bg-gradient-to-r from-[#131E15] via-[#101813] to-[#0E1310] p-4 shadow-[0_0_26px_rgba(163,255,18,0.08)]">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#A3FF12]/40 bg-[#A3FF12]/15 text-[#A3FF12]">
+                  <Gamepad2 className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-display text-sm font-bold text-white">
+                    New: NutriSense Run Arcade
+                  </p>
+                  <p className="text-xs text-[#A1A1AA]">
+                    3-Lane track + Bob Run portal, winter hacks, quizzes &amp; 5 km/10 km health photo tasks.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => onNavigate("game")}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#A3FF12] px-4 py-2 text-xs font-bold text-[#050706] transition hover:bg-[#b8ff42]"
+              >
+                <span>Open Game</span>
+                <ArrowRight className="h-3.5 w-3.5" />
+              </button>
+            </div>
           </div>
 
           {/* Right Stage 3 & 4: Cinematic Layered Food Composition + Floating Nutrition Indicators */}
