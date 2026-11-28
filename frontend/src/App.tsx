@@ -34,6 +34,7 @@ import { AlternativesView } from "./views/AlternativesView";
 import { BudgetNutritionView } from "./views/BudgetNutritionView";
 import { CategoriesView } from "./views/CategoriesView";
 import { DoshaDetailView } from "./views/DoshaDetailView";
+import { GameView } from "./views/GameView";
 import { GroceryListView } from "./views/GroceryListView";
 import { HomeView } from "./views/HomeView";
 import { IndianFoodsView } from "./views/IndianFoodsView";
@@ -113,7 +114,8 @@ function readInitialViewFromHash(): AppView {
     hash === "global-nutrition" ||
     hash === "men" ||
     hash === "baby" ||
-    hash === "patient"
+    hash === "patient" ||
+    hash === "game"
   ) {
     return hash;
   }
@@ -621,6 +623,16 @@ function AppShell() {
 
               {activeView === "patient" && (
                 <PatientNutritionView onNavigate={handleNavigate} />
+              )}
+
+              {activeView === "game" && (
+                <GameView
+                  onNavigate={handleNavigate}
+                  onDataLogged={(msg) => {
+                    setDashboardRefreshTrigger((n) => n + 1);
+                    showToast(msg);
+                  }}
+                />
               )}
             </motion.div>
           </AnimatePresence>

@@ -170,3 +170,14 @@ input[type="range"].nutri-slider::-moz-range-thumb {
   box-shadow: 0 0 0 2px rgba(182, 255, 56, 0.3), 0 0 12px rgba(182, 255, 56, 0.45);
   transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

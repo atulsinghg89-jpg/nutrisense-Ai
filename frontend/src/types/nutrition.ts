@@ -14,7 +14,8 @@ export type AppView =
   | "global-nutrition"
   | "men"
   | "baby"
-  | "patient";
+  | "patient"
+  | "game";
 
 export interface ChatMessage {
   id: string;

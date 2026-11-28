@@ -5,6 +5,7 @@ import {
   CalendarDays,
   Camera,
   ChevronDown,
+  Gamepad2,
   Globe2,
   HeartPulse,
   Home,
@@ -68,6 +69,12 @@ const HUB_ITEMS: {
   subtitle: string;
   icon: typeof CalendarDays;
 }[] = [
+  {
+    id: "game",
+    label: "NutriSense Run (Health Game)",
+    subtitle: "3-lane run, winter hacks & tasks",
+    icon: Gamepad2,
+  },
   {
     id: "global-nutrition",
     label: "Global Nutrition Intelligence",

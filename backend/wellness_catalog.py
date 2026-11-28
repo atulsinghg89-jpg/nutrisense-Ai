@@ -1094,7 +1094,7 @@ def register_wellness_and_catalog(
     get_db: Callable[..., Any],
     platform: dict[str, Any],
     SessionLocal: Any,
-) -> None:
+) -> dict[str, Any]:
     """Register Women's Wellness, Consent, BMI History, Product Catalog, and Directory routes."""
     global _SYNC_CATALOG_HOOK
 
@@ -2545,3 +2545,11 @@ def register_wellness_and_catalog(
     @app.on_event("startup")
     def _seed_on_startup() -> None:
         _ensure_tables_and_seed()
+
+    return {
+        "Retailer": Retailer,
+        "ProductCatalogItem": ProductCatalogItem,
+        "ProductRetailerListing": ProductRetailerListing,
+        "AffiliateClickEvent": AffiliateClickEvent,
+        "enforce_rate_limit": enforce_rate_limit,
+    }

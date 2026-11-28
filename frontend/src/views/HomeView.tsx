@@ -14,6 +14,7 @@ import {
   CalendarDays,
   Camera,
   Flame,
+  Gamepad2,
   Globe2,
   HeartPulse,
   IndianRupee,
@@ -824,6 +825,26 @@ export function HomeView({
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => onNavigate("game")}
+              className="group rounded-2xl border border-[#A3FF12]/40 bg-gradient-to-br from-[#162119] to-[#121212] p-5 text-left transition hover:border-[#A3FF12] hover:bg-[#171717]"
+            >
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl border border-[#A3FF12]/50 bg-[#A3FF12]/15 text-[#A3FF12]">
+                <Gamepad2 className="h-5 w-5" />
+              </div>
+              <h3 className="mt-4 font-display text-base font-bold text-white group-hover:text-[#A3FF12]">
+                NutriSense Run (Play &amp; Learn)
+              </h3>
+              <p className="mt-1.5 text-xs leading-relaxed text-[#A1A1AA]">
+                3-lane endless track &amp; Bob Run world with coins, winter hacks,
+                quizzes &amp; real hydration/meal checkpoints.
+              </p>
+              <span className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-[#A3FF12]">
+                Play Now <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </button>
+
             <button
               type="button"
               onClick={() => onNavigate("global-nutrition")}

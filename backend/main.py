@@ -694,6 +694,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import SQLAlchemyError
 from global_nutrition import register_global_nutrition
 from persistence_layer import ensure_audit_schema_upgrades, register_persistence_layer
+from rewards_catalog import register_rewards_module
 from user_platform import register_user_platform
 from wellness_catalog import register_wellness_and_catalog
 
@@ -774,7 +775,8 @@ _persistence_ctx = register_persistence_layer(
 _platform_ctx["add_account_cleanup_hook"](
     _persistence_ctx["delete_user_upload_files_on_disk"]
 )
-register_wellness_and_catalog(app, Base, get_db, _platform_ctx, SessionLocal)
+_catalog_ctx = register_wellness_and_catalog(app, Base, get_db, _platform_ctx, SessionLocal)
+register_rewards_module(app, Base, get_db, _platform_ctx, _catalog_ctx)
 register_global_nutrition(app, Base, get_db, _platform_ctx, SessionLocal)
 
 
