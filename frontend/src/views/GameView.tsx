@@ -170,9 +170,16 @@ export function GameView({ onNavigate, onDataLogged }: GameViewProps) {
   const hasWaterTask = save.completedTaskIds.includes("task_water_5km");
   const hasMealTask = save.completedTaskIds.includes("task_meal_10km");
 
+  const selectUniverse = useCallback(
+    (nextUniverse: GameUniverse) => {
+      setUniverse(nextUniverse);
+      persistSave((prev) => ({ ...prev, lastUniverse: nextUniverse }));
+    },
+    [persistSave],
+  );
+
   const startFreshRun = (chosenUniverse: GameUniverse = universe) => {
-    setUniverse(chosenUniverse);
-    persistSave((prev) => ({ ...prev, lastUniverse: chosenUniverse }));
+    selectUniverse(chosenUniverse);
     setDistanceKm(0);
     setRunScore(0);
     setRunCoins(0);
@@ -558,26 +565,37 @@ export function GameView({ onNavigate, onDataLogged }: GameViewProps) {
               {/* HUD & Universe Controls */}
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setUniverse((u) => {
-                        const next =
-                          u === "runner_3lane" ? "platform_bob" : "runner_3lane";
-                        persistSave((prev) => ({ ...prev, lastUniverse: next }));
-                        return next;
-                      })
-                    }
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-sky-300/35 bg-sky-400/10 px-3 py-1.5 text-xs font-bold text-sky-200 transition hover:bg-sky-400/20"
+                  {/* Prominent 2-Universe Switcher Pill (instant switch anytime) */}
+                  <div
+                    role="group"
+                    aria-label="Switch game universe"
+                    className="inline-flex items-center rounded-xl border border-sky-300/30 bg-[#0A0A0A] p-0.5"
                   >
-                    <Sparkles className="h-3.5 w-3.5" />
-                    <span>
-                      World:{" "}
-                      {universe === "runner_3lane"
-                        ? "3-Lane NutriSense Track"
-                        : "Bob Run Adventure"}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => selectUniverse("runner_3lane")}
+                      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                        universe === "runner_3lane"
+                          ? "bg-[#34D399] text-[#050706] shadow-sm"
+                          : "text-zinc-300 hover:text-white"
+                      }`}
+                    >
+                      <Gamepad2 className="h-3.5 w-3.5" />
+                      <span>3-Lane Track</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => selectUniverse("platform_bob")}
+                      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                        universe === "platform_bob"
+                          ? "bg-sky-300 text-[#071318] shadow-sm"
+                          : "text-zinc-300 hover:text-white"
+                      }`}
+                    >
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span>Bob Run World</span>
+                    </button>
+                  </div>
 
                   {running ? (
                     <button
@@ -647,25 +665,64 @@ export function GameView({ onNavigate, onDataLogged }: GameViewProps) {
 
                 {/* Pre-Start Hero Overlay */}
                 {!running && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl bg-[#050706]/80 p-6 text-center backdrop-blur-sm">
-                    <span className="rounded-full border border-[#A3FF12]/40 bg-[#A3FF12]/15 px-3 py-1 text-xs font-bold text-[#A3FF12]">
-                      {universe === "runner_3lane"
-                        ? "Universe 1: 3-Lane NutriSense Track"
-                        : "Universe 2: Bob Run Platform Adventure"}
+                  <div className="absolute inset-0 flex flex-col items-center justify-center overflow-y-auto rounded-2xl bg-[#050706]/72 p-3 sm:p-6 text-center backdrop-blur-[2px]">
+                    <span className="rounded-full border border-[#A3FF12]/40 bg-[#A3FF12]/15 px-3 py-0.5 text-[10px] sm:text-[11px] font-bold text-[#A3FF12]">
+                      Choose Universe • Portal Gate at 0.45 km
                     </span>
-                    <h2 className="mt-3 font-display text-2xl font-extrabold text-white">
+                    <h2 className="mt-1.5 sm:mt-2 font-display text-lg sm:text-2xl font-extrabold text-white">
                       Ready to Run?
                     </h2>
-                    <p className="mt-1.5 max-w-md text-xs leading-relaxed text-zinc-300">
-                      Collect coins, grab glowing Fact/Hack boxes &amp; Quiz gates, step into Portal Gates anytime to switch worlds, and complete 5 km &amp; 10 km health tasks to level up!
+                    <p className="mt-1 hidden sm:block max-w-lg text-xs leading-relaxed text-zinc-300">
+                      Collect 3D coins, open Fact/Hack crates &amp; Quiz gates, warp between universes via early Portal Gates, and finish 5 km &amp; 10 km photo tasks to level up.
                     </p>
+
+                    {/* Side-by-side Universe Picker */}
+                    <div className="mt-2 sm:mt-3 grid w-full max-w-md grid-cols-2 gap-2">
+                      {(
+                        [
+                          {
+                            id: "runner_3lane",
+                            title: "3-Lane Track",
+                            subtitle: "Subway-style 3D road",
+                          },
+                          {
+                            id: "platform_bob",
+                            title: "Bob Run World",
+                            subtitle: "Parallax jump adventure",
+                          },
+                        ] as const
+                      ).map((mode) => {
+                        const selected = universe === mode.id;
+                        return (
+                          <button
+                            key={mode.id}
+                            type="button"
+                            onClick={() => selectUniverse(mode.id)}
+                            className={`rounded-xl border px-2.5 py-1.5 sm:px-3 sm:py-2 text-left transition ${
+                              selected
+                                ? "border-[#A3FF12] bg-[#A3FF12]/15 text-white shadow-[0_0_16px_rgba(163,255,18,0.2)]"
+                                : "border-white/15 bg-[#0A0A0A]/80 text-zinc-300 hover:border-white/30"
+                            }`}
+                          >
+                            <p className="text-[11px] sm:text-xs font-bold">{mode.title}</p>
+                            <p className="hidden sm:block text-[10px] text-zinc-400">
+                              {mode.subtitle}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+
                     <button
                       type="button"
                       onClick={() => startFreshRun(universe)}
-                      className="mt-4 inline-flex items-center gap-2 rounded-2xl bg-[#A3FF12] px-6 py-3 text-sm font-bold text-[#050706] shadow-[0_0_24px_rgba(163,255,18,0.3)] transition hover:bg-[#b8ff42]"
+                      className="mt-2.5 sm:mt-3.5 inline-flex items-center gap-2 rounded-2xl bg-[#A3FF12] px-5 py-2 sm:px-6 sm:py-2.5 text-xs sm:text-sm font-bold text-[#050706] shadow-[0_0_24px_rgba(163,255,18,0.35)] transition hover:bg-[#b8ff42]"
                     >
-                      <Play className="h-4 w-4 fill-current" />
-                      <span>Start NutriSense Run</span>
+                      <Play className="h-3.5 w-3.5 sm:h-4 sm:w-4 fill-current" />
+                      <span>
+                        Start in{" "}
+                        {universe === "runner_3lane" ? "3-Lane Track" : "Bob Run World"}
+                      </span>
                     </button>
                   </div>
                 )}
@@ -691,8 +748,7 @@ export function GameView({ onNavigate, onDataLogged }: GameViewProps) {
                               universe === "runner_3lane"
                                 ? "platform_bob"
                                 : "runner_3lane";
-                            setUniverse(next);
-                            persistSave((prev) => ({ ...prev, lastUniverse: next }));
+                            selectUniverse(next);
                             setPortalPromptOpen(false);
                             setPaused(false);
                           }}
