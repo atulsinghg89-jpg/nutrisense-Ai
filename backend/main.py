@@ -5,7 +5,7 @@ import logging
 import os
 from pathlib import Path
 import tempfile
-from typing import Generator, Literal
+from typing import Any, Generator, Literal
 
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile, status
